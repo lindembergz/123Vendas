@@ -32,6 +32,50 @@ public class VendaRepository : IVendaRepository
             .ToListAsync(ct);
     }
     
+    public async Task<(List<VendaAgregado> Items, int TotalCount)> ListarComFiltrosAsync(
+        int pageNumber,
+        int pageSize,
+        Guid? clienteId = null,
+        Guid? filialId = null,
+        Domain.Enums.StatusVenda? status = null,
+        DateTime? dataInicio = null,
+        DateTime? dataFim = null,
+        CancellationToken ct = default)
+    {
+        var query = _context.Vendas.AsNoTracking();
+        
+        // Aplicar filtros
+        if (clienteId.HasValue)
+            query = query.Where(v => v.ClienteId == clienteId.Value);
+        
+        if (filialId.HasValue)
+        {
+            var filialStr = filialId.Value.ToString();
+            query = query.Where(v => v.Filial == filialStr);
+        }
+        
+        if (status.HasValue)
+            query = query.Where(v => v.Status == status.Value);
+        
+        if (dataInicio.HasValue)
+            query = query.Where(v => v.Data >= dataInicio.Value);
+        
+        if (dataFim.HasValue)
+            query = query.Where(v => v.Data <= dataFim.Value);
+        
+        // Contar total antes da paginação
+        var totalCount = await query.CountAsync(ct);
+        
+        // Aplicar paginação e ordenação
+        var items = await query
+            .OrderByDescending(v => v.Data)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(ct);
+        
+        return (items, totalCount);
+    }
+    
     public async Task AdicionarAsync(VendaAgregado venda, CancellationToken ct = default)
     {
         if (venda == null)

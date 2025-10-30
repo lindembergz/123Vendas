@@ -1,4 +1,4 @@
-namespace Venda.Infrastructure.Interfaces;
+namespace Venda.Application.Interfaces;
 
 public interface IIdempotencyStore
 {

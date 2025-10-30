@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using Venda.Application.Interfaces;
 using Venda.Infrastructure.Data;
 using Venda.Infrastructure.Entities;
-using Venda.Infrastructure.Interfaces;
 
 namespace Venda.Infrastructure.Services;
 
