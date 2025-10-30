@@ -4,6 +4,7 @@ using Venda.Domain.Aggregates;
 using Venda.Domain.ValueObjects;
 using Venda.Infrastructure.Data;
 using Venda.Infrastructure.Repositories;
+using Venda.Infrastructure.Services;
 
 namespace Venda.Infrastructure.Tests;
 
@@ -20,7 +21,8 @@ public class VendaRepositoryTests : IDisposable
             .Options;
         
         _context = new VendaDbContext(options);
-        _repository = new VendaRepository(_context);
+        var outboxService = new OutboxService(_context);
+        _repository = new VendaRepository(_context, outboxService);
     }
     
     [Fact]

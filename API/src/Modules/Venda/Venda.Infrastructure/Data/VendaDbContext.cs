@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Venda.Domain.Aggregates;
+using Venda.Infrastructure.Entities;
 
 namespace Venda.Infrastructure.Data;
 
@@ -10,6 +11,7 @@ public class VendaDbContext : DbContext
     }
     
     public DbSet<VendaAgregado> Vendas => Set<VendaAgregado>();
+    public DbSet<OutboxEvent> OutboxEvents => Set<OutboxEvent>();
     
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

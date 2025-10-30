@@ -1,4 +1,5 @@
 using _123Vendas.Shared.Common;
+using _123Vendas.Shared.Events;
 using Venda.Domain.Enums;
 using Venda.Domain.ValueObjects;
 
@@ -18,6 +19,10 @@ public class VendaAgregado
     
     public decimal ValorTotal => _produtos.Sum(i => i.Total);
     
+    // Domain Events
+    private readonly List<IDomainEvent> _domainEvents = new();
+    public IReadOnlyCollection<IDomainEvent> DomainEvents => _domainEvents.AsReadOnly();
+    
     public static VendaAgregado Criar(Guid clienteId, string filial)
     {
         if (clienteId == Guid.Empty)
@@ -26,12 +31,21 @@ public class VendaAgregado
         if (string.IsNullOrWhiteSpace(filial))
             throw new ArgumentException("Filial é obrigatória.", nameof(filial));
         
-        return new VendaAgregado
+        var venda = new VendaAgregado
         {
             ClienteId = clienteId,
             Filial = filial,
             NumeroVenda = 0 // Será definido pelo repositório
         };
+        
+        // Evento será adicionado após definir NumeroVenda no repositório
+        return venda;
+    }
+    
+    public void DefinirNumeroVenda(int numeroVenda)
+    {
+        NumeroVenda = numeroVenda;
+        AddDomainEvent(new CompraCriada(Id, NumeroVenda, ClienteId));
     }
     
     public Result AdicionarItem(ItemVenda item)
@@ -68,6 +82,9 @@ public class VendaAgregado
         // Recalcula descontos de todos os itens do mesmo produto
         RecalcularDescontosProduto(item.ProdutoId);
         
+        // Adiciona evento de alteração
+        AddDomainEvent(new CompraAlterada(Id, new[] { item.ProdutoId }));
+        
         return Result.Success();
     }
     
@@ -77,6 +94,24 @@ public class VendaAgregado
             return Result.Failure("Venda já está cancelada.");
         
         Status = StatusVenda.Cancelada;
+        AddDomainEvent(new CompraCancelada(Id, "Cancelado pelo usuário"));
+        
+        return Result.Success();
+    }
+    
+    public Result RemoverItem(Guid produtoId)
+    {
+        if (Status == StatusVenda.Cancelada)
+            return Result.Failure("Não é possível remover itens de uma venda cancelada.");
+        
+        var item = _produtos.FirstOrDefault(i => i.ProdutoId == produtoId);
+        if (item == null)
+            return Result.Failure($"Produto {produtoId} não encontrado na venda.");
+        
+        _produtos.Remove(item);
+        RecalcularDescontosProduto(produtoId);
+        AddDomainEvent(new ItemCancelado(Id, produtoId));
+        
         return Result.Success();
     }
     
@@ -109,6 +144,16 @@ public class VendaAgregado
                 _produtos[i] = _produtos[i].WithDesconto(desconto);
             }
         }
+    }
+    
+    private void AddDomainEvent(IDomainEvent @event)
+    {
+        _domainEvents.Add(@event);
+    }
+    
+    public void ClearDomainEvents()
+    {
+        _domainEvents.Clear();
     }
     
     private VendaAgregado() { } // EF Core
