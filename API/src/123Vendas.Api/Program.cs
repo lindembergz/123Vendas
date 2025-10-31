@@ -1,15 +1,43 @@
 using _123Vendas.Shared.Interfaces;
 using CRM.Application.Services;
 using Estoque.Application.Services;
+using HealthChecks.UI.Client;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
 using Polly;
 using Polly.Extensions.Http;
+using System.Text.Json;
+using Venda.Infrastructure.Data;
+using Venda.Infrastructure.HealthChecks;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+
+// Configurar DbContext (necessário para health checks)
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
+    ?? "Data Source=vendas.db";
+builder.Services.AddDbContext<VendaDbContext>(options =>
+    options.UseSqlite(connectionString, sqliteOptions =>
+    {
+        sqliteOptions.CommandTimeout(30);
+    }));
+
+// Configurar Health Checks
+builder.Services.AddHealthChecks()
+    .AddSqlite(
+        connectionString: connectionString,
+        name: "sqlite",
+        failureStatus: HealthStatus.Unhealthy,
+        tags: new[] { "db", "sqlite" })
+    .AddCheck("self", () => HealthCheckResult.Healthy("API está respondendo"), 
+        tags: new[] { "self" })
+    .AddCheck<OutboxHealthCheck>("outbox", 
+        tags: new[] { "outbox" });
 
 // Configurar HttpClient para ClienteService com Polly
 builder.Services.AddHttpClient<IClienteService, ClienteService>(client =>
@@ -124,9 +152,65 @@ app.MapGet("/weatherforecast", () =>
 })
 .WithName("GetWeatherForecast");
 
+// Health Check Endpoints
+app.MapHealthChecks("/health", new HealthCheckOptions
+{
+    ResponseWriter = async (context, report) =>
+    {
+        context.Response.ContentType = "application/json";
+
+        var result = JsonSerializer.Serialize(new
+        {
+            status = report.Status.ToString(),
+            checks = report.Entries.Select(e => new
+            {
+                name = e.Key,
+                status = e.Value.Status.ToString(),
+                description = e.Value.Description,
+                duration = e.Value.Duration.TotalMilliseconds,
+                data = e.Value.Data
+            }),
+            totalDuration = report.TotalDuration.TotalMilliseconds
+        }, new JsonSerializerOptions { WriteIndented = true });
+
+        await context.Response.WriteAsync(result);
+    }
+});
+
+// Readiness probe (apenas self check)
+app.MapHealthChecks("/ready", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("self"),
+    ResponseWriter = async (context, report) =>
+    {
+        context.Response.ContentType = "application/json";
+        await context.Response.WriteAsync(JsonSerializer.Serialize(new
+        {
+            status = report.Status.ToString()
+        }));
+    }
+});
+
+// Liveness probe (verifica dependências críticas: db e self)
+app.MapHealthChecks("/live", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("db") || check.Tags.Contains("self"),
+    ResponseWriter = async (context, report) =>
+    {
+        context.Response.ContentType = "application/json";
+        await context.Response.WriteAsync(JsonSerializer.Serialize(new
+        {
+            status = report.Status.ToString()
+        }));
+    }
+});
+
 app.Run();
 
 record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
 {
     public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
 }
+
+// Make Program class accessible for integration tests
+public partial class Program { }
