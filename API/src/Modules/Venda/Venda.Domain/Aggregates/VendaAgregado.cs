@@ -3,6 +3,7 @@ using _123Vendas.Shared.Events;
 using _123Vendas.Shared.Interfaces;
 using Venda.Domain.Enums;
 using Venda.Domain.Interfaces;
+using Venda.Domain.Services;
 using Venda.Domain.ValueObjects;
 
 namespace Venda.Domain.Aggregates;
@@ -27,16 +28,16 @@ public class VendaAgregado : IAggregateRoot
     private readonly List<IDomainEvent> _domainEvents = new();
     public IReadOnlyCollection<IDomainEvent> DomainEvents => _domainEvents.AsReadOnly();
     
-    // Construtor privado para EF Core
-    private VendaAgregado() 
-    {
-        _politicaDesconto = null!; // EF Core irá definir via reflection
-    }
-    
     // Construtor com injeção de dependência
     public VendaAgregado(IPoliticaDesconto politicaDesconto)
     {
         _politicaDesconto = politicaDesconto ?? throw new ArgumentNullException(nameof(politicaDesconto));
+    }
+    
+    // Construtor privado para EF Core
+    private VendaAgregado() : this(new PoliticaDesconto()) 
+    {
+        // EF Core usa este construtor
     }
     
     public static VendaAgregado Criar(Guid clienteId, Guid filialId, IPoliticaDesconto politicaDesconto)
@@ -92,22 +93,27 @@ public class VendaAgregado : IAggregateRoot
         var itemExistente = _produtos.FirstOrDefault(i => i.ProdutoId == item.ProdutoId);
         if (itemExistente != null)
         {
+            // Remove o item existente e adiciona com quantidade e desconto atualizados
             _produtos.Remove(itemExistente);
-            var itemConsolidado = itemExistente with
-            {
-                Quantidade = quantidadeTotal,
-                Desconto = desconto
-            };
+            var itemConsolidado = new ItemVenda(
+                item.ProdutoId,
+                quantidadeTotal,
+                item.ValorUnitario,
+                desconto
+            );
             _produtos.Add(itemConsolidado);
         }
         else
         {
-            var itemComDesconto = item.WithDesconto(desconto);
+            // Novo produto: adiciona com desconto calculado
+            var itemComDesconto = new ItemVenda(
+                item.ProdutoId,
+                item.Quantidade,
+                item.ValorUnitario,
+                desconto
+            );
             _produtos.Add(itemComDesconto);
         }
-        
-        // Recalcula todos os descontos para garantir consistência
-        RecalcularTodosOsDescontos();
         
         // Adiciona evento de alteração
         AddDomainEvent(new CompraAlterada(Id, new[] { item.ProdutoId }));
@@ -126,8 +132,49 @@ public class VendaAgregado : IAggregateRoot
         return Result.Success();
     }
     
+    public Result RemoverItem(Guid produtoId, int quantidade)
+    {
+        if (Status == StatusVenda.Cancelada)
+            return Result.Failure("Não é possível remover itens de uma venda cancelada.");
+        
+        if (quantidade <= 0)
+            return Result.Failure("Quantidade a remover deve ser maior que zero.");
+        
+        var item = _produtos.FirstOrDefault(i => i.ProdutoId == produtoId);
+        if (item == null)
+            return Result.Failure($"Produto {produtoId} não encontrado na venda.");
+        
+        if (quantidade > item.Quantidade)
+            return Result.Failure($"Quantidade a remover ({quantidade}) é maior que a quantidade disponível ({item.Quantidade}).");
+        
+        var novaQuantidade = item.Quantidade - quantidade;
+        
+        if (novaQuantidade == 0)
+        {
+            // Remove o item completamente
+            _produtos.Remove(item);
+            AddDomainEvent(new ItemCancelado(Id, produtoId));
+        }
+        else
+        {
+            // Atualiza a quantidade e recalcula o desconto
+            var novoDesconto = _politicaDesconto.Calcular(novaQuantidade);
+            _produtos.Remove(item);
+            _produtos.Add(new ItemVenda(
+                item.ProdutoId,
+                novaQuantidade,
+                item.ValorUnitario,
+                novoDesconto
+            ));
+            AddDomainEvent(new CompraAlterada(Id, new[] { produtoId }));
+        }
+        
+        return Result.Success();
+    }
+    
     public Result RemoverItem(Guid produtoId)
     {
+        // Remove o item completamente (todas as quantidades)
         if (Status == StatusVenda.Cancelada)
             return Result.Failure("Não é possível remover itens de uma venda cancelada.");
         
@@ -136,10 +183,6 @@ public class VendaAgregado : IAggregateRoot
             return Result.Failure($"Produto {produtoId} não encontrado na venda.");
         
         _produtos.Remove(item);
-        
-        // Recalcula todos os descontos para garantir consistência
-        RecalcularTodosOsDescontos();
-        
         AddDomainEvent(new ItemCancelado(Id, produtoId));
         
         return Result.Success();
@@ -150,22 +193,38 @@ public class VendaAgregado : IAggregateRoot
         Status = StatusVenda.PendenteValidacao;
     }
     
+    public Result Confirmar()
+    {
+        if (Status == StatusVenda.Cancelada)
+            return Result.Failure("Não é possível confirmar uma venda cancelada.");
+        
+        if (Status == StatusVenda.Ativa)
+            return Result.Failure("Venda já está ativa.");
+        
+        Status = StatusVenda.Ativa;
+        AddDomainEvent(new CompraAlterada(Id, _produtos.Select(p => p.ProdutoId).ToArray()));
+        
+        return Result.Success();
+    }
+    
     private void RecalcularTodosOsDescontos()
     {
-        var grupos = _produtos.GroupBy(i => i.ProdutoId);
-        
-        foreach (var grupo in grupos)
+        // Recalcula descontos para todos os produtos
+        // Nota: Cada produto deve ter apenas UMA linha na lista
+        for (int i = 0; i < _produtos.Count; i++)
         {
-            var quantidadeTotal = grupo.Sum(i => i.Quantidade);
+            var item = _produtos[i];
+            var quantidadeTotal = item.Quantidade;
             var desconto = _politicaDesconto.Calcular(quantidadeTotal);
             
-            foreach (var item in grupo)
+            if (_produtos[i].Desconto != desconto)
             {
-                var index = _produtos.IndexOf(item);
-                if (index >= 0 && _produtos[index].Desconto != desconto)
-                {
-                    _produtos[index] = item with { Desconto = desconto };
-                }
+                _produtos[i] = new ItemVenda(
+                    item.ProdutoId,
+                    item.Quantidade,
+                    item.ValorUnitario,
+                    desconto
+                );
             }
         }
     }

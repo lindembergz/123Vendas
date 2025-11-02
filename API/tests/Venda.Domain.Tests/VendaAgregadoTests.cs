@@ -210,4 +210,89 @@ public class VendaAgregadoTests
         venda.Produtos[0].Quantidade.Should().Be(4);
         venda.Produtos.All(p => p.Desconto == 0.10m).Should().BeTrue();
     }
+    
+    [Fact]
+    public void AdicionarItem_MesmoProdutoMultiplasVezes_DeveConsolidarEmUmaLinhaComDescontoCorreto()
+    {
+        // Arrange
+        var venda = VendaAgregado.Criar(Guid.NewGuid(), Guid.NewGuid(), _politicaDesconto);
+        var produtoId = Guid.NewGuid();
+        
+        // Act - adiciona o mesmo produto em 3 operações diferentes com quantidades variadas
+        var result1 = venda.AdicionarItem(new ItemVenda(produtoId, 2, 100m)); // Total: 2 (sem desconto)
+        var result2 = venda.AdicionarItem(new ItemVenda(produtoId, 3, 100m)); // Total: 5 (10% desconto)
+        var result3 = venda.AdicionarItem(new ItemVenda(produtoId, 5, 100m)); // Total: 10 (20% desconto)
+        
+        // Assert
+        result1.IsSuccess.Should().BeTrue();
+        result2.IsSuccess.Should().BeTrue();
+        result3.IsSuccess.Should().BeTrue();
+        
+        venda.Produtos.Should().HaveCount(1, "deve ter APENAS UMA linha para o mesmo produto");
+        venda.Produtos[0].ProdutoId.Should().Be(produtoId);
+        venda.Produtos[0].Quantidade.Should().Be(10, "quantidade deve ser a soma: 2 + 3 + 5 = 10");
+        venda.Produtos[0].Desconto.Should().Be(0.20m, "10 unidades = 20% de desconto");
+        venda.Produtos[0].ValorUnitario.Should().Be(100m);
+        venda.ValorTotal.Should().Be(800m, "10 * 100 * 0.8 = 800");
+    }
+    
+    [Fact]
+    public void AdicionarItem_MesmoProdutoUltrapassandoLimite_DeveRejeitarEManterEstadoAnterior()
+    {
+        // Arrange
+        var venda = VendaAgregado.Criar(Guid.NewGuid(), Guid.NewGuid(), _politicaDesconto);
+        var produtoId = Guid.NewGuid();
+        
+        // Act - adiciona 15 unidades primeiro
+        var result1 = venda.AdicionarItem(new ItemVenda(produtoId, 15, 100m));
+        var quantidadeAntes = venda.Produtos[0].Quantidade;
+        var valorAntes = venda.ValorTotal;
+        
+        // Tenta adicionar mais 6 unidades (total seria 21 - deve falhar)
+        var result2 = venda.AdicionarItem(new ItemVenda(produtoId, 6, 100m));
+        
+        // Assert
+        result1.IsSuccess.Should().BeTrue();
+        result2.IsFailure.Should().BeTrue();
+        result2.Error.Should().Contain("mais de 20 unidades");
+        
+        venda.Produtos.Should().HaveCount(1);
+        venda.Produtos[0].Quantidade.Should().Be(15, "quantidade deve permanecer 15 após rejeição");
+        venda.ValorTotal.Should().Be(valorAntes, "valor total não deve mudar após rejeição");
+    }
+    
+    [Fact]
+    public void AdicionarItem_ProdutosDiferentes_DeveTerLinhasSeparadasComDescontosIndependentes()
+    {
+        // Arrange
+        var venda = VendaAgregado.Criar(Guid.NewGuid(), Guid.NewGuid(), _politicaDesconto);
+        var produtoA = Guid.NewGuid();
+        var produtoB = Guid.NewGuid();
+        var produtoC = Guid.NewGuid();
+        
+        // Act - adiciona produtos diferentes com quantidades que geram descontos diferentes
+        venda.AdicionarItem(new ItemVenda(produtoA, 5, 100m));  // 5 unidades = 10% desconto
+        venda.AdicionarItem(new ItemVenda(produtoB, 12, 50m));  // 12 unidades = 20% desconto
+        venda.AdicionarItem(new ItemVenda(produtoC, 2, 75m));   // 2 unidades = sem desconto
+        
+        // Assert
+        venda.Produtos.Should().HaveCount(3, "deve ter 3 linhas para 3 produtos diferentes");
+        
+        var itemA = venda.Produtos.First(p => p.ProdutoId == produtoA);
+        itemA.Quantidade.Should().Be(5);
+        itemA.Desconto.Should().Be(0.10m);
+        itemA.Total.Should().Be(450m); // 5 * 100 * 0.9
+        
+        var itemB = venda.Produtos.First(p => p.ProdutoId == produtoB);
+        itemB.Quantidade.Should().Be(12);
+        itemB.Desconto.Should().Be(0.20m);
+        itemB.Total.Should().Be(480m); // 12 * 50 * 0.8
+        
+        var itemC = venda.Produtos.First(p => p.ProdutoId == produtoC);
+        itemC.Quantidade.Should().Be(2);
+        itemC.Desconto.Should().Be(0m);
+        itemC.Total.Should().Be(150m); // 2 * 75 * 1.0
+        
+        venda.ValorTotal.Should().Be(1080m); // 450 + 480 + 150
+    }
 }

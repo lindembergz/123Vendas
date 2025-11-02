@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace _123Vendas.Shared.Events;
 
 /// <summary>
@@ -7,17 +9,19 @@ namespace _123Vendas.Shared.Events;
 public record CompraAlterada : DomainEvent
 {
     public Guid VendaId { get; init; }
-    public IReadOnlyList<Guid> ProdutosModificados { get; init; }
+    public Guid[] ProdutosModificados { get; init; }
 
     public CompraAlterada(Guid vendaId, IEnumerable<Guid> produtosModificados)
     {
         VendaId = vendaId;
-        ProdutosModificados = produtosModificados.ToList().AsReadOnly();
+        ProdutosModificados = produtosModificados.ToArray();
     }
 
-    // Construtor para desserialização
-    private CompraAlterada()
+    // Construtor para desserialização JSON
+    [JsonConstructor]
+    public CompraAlterada(Guid vendaId, Guid[] produtosModificados)
     {
-        ProdutosModificados = Array.Empty<Guid>();
+        VendaId = vendaId;
+        ProdutosModificados = produtosModificados ?? Array.Empty<Guid>();
     }
 }

@@ -19,8 +19,8 @@ public class VendaRepository : IVendaRepository
     
     public async Task<VendaAgregado?> ObterPorIdAsync(Guid id, CancellationToken ct = default)
     {
+        // Não usar AsNoTracking aqui pois pode ser usado para atualização
         return await _context.Vendas
-            .AsNoTracking()
             .FirstOrDefaultAsync(v => v.Id == id, ct);
     }
     
@@ -79,6 +79,11 @@ public class VendaRepository : IVendaRepository
     {
         if (venda == null)
             throw new ArgumentNullException(nameof(venda));
+        
+        // Gerar número sequencial por filial ANTES de adicionar
+        var ultimoNumero = await ObterUltimoNumeroPorFilialAsync(venda.FilialId, ct);
+        var novoNumero = ultimoNumero + 1;
+        venda.DefinirNumeroVenda(novoNumero);
         
         await _context.Vendas.AddAsync(venda, ct);
         

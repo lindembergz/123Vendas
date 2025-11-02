@@ -1,3 +1,5 @@
+using _123Vendas.Api.Endpoints;
+using _123Vendas.Api.Extensions;
 using _123Vendas.Shared.Interfaces;
 using CRM.Application.Services;
 using Estoque.Application.Services;
@@ -45,6 +47,9 @@ try
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
+// Registrar serviços de aplicação (MediatR, Repositories, etc.)
+builder.Services.AddApplicationServices();
+
 // Configurar DbContext (necessário para health checks)
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
     ?? "Data Source=vendas.db";
@@ -69,7 +74,18 @@ builder.Services.AddHealthChecks()
     .AddCheck<OutboxHealthCheck>("outbox", 
         tags: new[] { "outbox" });
 
-// Configurar HttpClient para ClienteService com Polly
+// Configurar serviços externos (CRM e Estoque)
+// MODO: MOCK para desenvolvimento (sempre retorna sucesso)
+// Para usar serviços HTTP reais, descomente o bloco abaixo e comente os mocks
+
+// ===== MOCK SERVICES (DESENVOLVIMENTO) =====
+builder.Services.AddScoped<IClienteService, CRM.Application.Services.ClienteServiceMock>();
+builder.Services.AddScoped<IProdutoService, Estoque.Application.Services.ProdutoServiceMock>();
+Log.Information("Usando MOCK services para CRM e Estoque");
+
+// ===== HTTP SERVICES (PRODUÇÃO) =====
+// Descomente para usar serviços HTTP reais
+/*
 builder.Services.AddHttpClient<IClienteService, ClienteService>(client =>
 {
     var baseUrl = builder.Configuration["Services:CRM:BaseUrl"] 
@@ -87,9 +103,7 @@ builder.Services.AddHttpClient<IClienteService, ClienteService>(client =>
         sleepDurationProvider: retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)),
         onRetry: (outcome, timespan, retryAttempt, context) =>
         {
-            Console.WriteLine(
-                $"[Retry CRM] Tentativa {retryAttempt} após {timespan.TotalSeconds}s. " +
-                $"Motivo: {outcome.Exception?.Message ?? outcome.Result?.StatusCode.ToString()}");
+            Log.Warning("[Retry CRM] Tentativa {RetryAttempt} após {Delay}s", retryAttempt, timespan.TotalSeconds);
         }))
 .AddPolicyHandler(HttpPolicyExtensions
     .HandleTransientHttpError()
@@ -98,20 +112,17 @@ builder.Services.AddHttpClient<IClienteService, ClienteService>(client =>
         durationOfBreak: TimeSpan.FromSeconds(30),
         onBreak: (outcome, duration) =>
         {
-            Console.WriteLine(
-                $"[Circuit Breaker CRM] ABERTO por {duration.TotalSeconds}s. " +
-                $"Motivo: {outcome.Exception?.Message ?? outcome.Result?.StatusCode.ToString()}");
+            Log.Error("[Circuit Breaker CRM] ABERTO por {Duration}s", duration.TotalSeconds);
         },
         onReset: () =>
         {
-            Console.WriteLine("[Circuit Breaker CRM] RESETADO - Serviço voltou ao normal");
+            Log.Information("[Circuit Breaker CRM] RESETADO");
         },
         onHalfOpen: () =>
         {
-            Console.WriteLine("[Circuit Breaker CRM] HALF-OPEN - Testando serviço");
+            Log.Information("[Circuit Breaker CRM] HALF-OPEN");
         }));
 
-// Configurar HttpClient para ProdutoService com Polly
 builder.Services.AddHttpClient<IProdutoService, ProdutoService>(client =>
 {
     var baseUrl = builder.Configuration["Services:Estoque:BaseUrl"] 
@@ -129,9 +140,7 @@ builder.Services.AddHttpClient<IProdutoService, ProdutoService>(client =>
         sleepDurationProvider: retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)),
         onRetry: (outcome, timespan, retryAttempt, context) =>
         {
-            Console.WriteLine(
-                $"[Retry Estoque] Tentativa {retryAttempt} após {timespan.TotalSeconds}s. " +
-                $"Motivo: {outcome.Exception?.Message ?? outcome.Result?.StatusCode.ToString()}");
+            Log.Warning("[Retry Estoque] Tentativa {RetryAttempt} após {Delay}s", retryAttempt, timespan.TotalSeconds);
         }))
 .AddPolicyHandler(HttpPolicyExtensions
     .HandleTransientHttpError()
@@ -140,18 +149,17 @@ builder.Services.AddHttpClient<IProdutoService, ProdutoService>(client =>
         durationOfBreak: TimeSpan.FromSeconds(30),
         onBreak: (outcome, duration) =>
         {
-            Console.WriteLine(
-                $"[Circuit Breaker Estoque] ABERTO por {duration.TotalSeconds}s. " +
-                $"Motivo: {outcome.Exception?.Message ?? outcome.Result?.StatusCode.ToString()}");
+            Log.Error("[Circuit Breaker Estoque] ABERTO por {Duration}s", duration.TotalSeconds);
         },
         onReset: () =>
         {
-            Console.WriteLine("[Circuit Breaker Estoque] RESETADO - Serviço voltou ao normal");
+            Log.Information("[Circuit Breaker Estoque] RESETADO");
         },
         onHalfOpen: () =>
         {
-            Console.WriteLine("[Circuit Breaker Estoque] HALF-OPEN - Testando serviço");
+            Log.Information("[Circuit Breaker Estoque] HALF-OPEN");
         }));
+*/
 
 var app = builder.Build();
 
@@ -163,24 +171,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
-
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
+// Mapear endpoints de vendas
+app.MapVendasEndpoints();
 
 // Health Check Endpoints
 app.MapHealthChecks("/health", new HealthCheckOptions
@@ -235,6 +227,14 @@ app.MapHealthChecks("/live", new HealthCheckOptions
     }
 });
 
+    // Aplicar migrações automaticamente no startup
+    using (var scope = app.Services.CreateScope())
+    {
+        var dbContext = scope.ServiceProvider.GetRequiredService<VendaDbContext>();
+        dbContext.Database.Migrate();
+        Log.Information("Migrações aplicadas com sucesso");
+    }
+
     app.Run();
     
     Log.Information("123Vendas API encerrada com sucesso");
@@ -247,11 +247,6 @@ catch (Exception ex)
 finally
 {
     Log.CloseAndFlush();
-}
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
 }
 
 // Make Program class accessible for integration tests
