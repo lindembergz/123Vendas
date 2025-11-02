@@ -1,5 +1,6 @@
 using _123Vendas.Shared.Common;
 using _123Vendas.Shared.Events;
+using _123Vendas.Shared.Interfaces;
 using FluentAssertions;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -12,6 +13,7 @@ using Venda.Application.Interfaces;
 using Venda.Domain.Aggregates;
 using Venda.Domain.Enums;
 using Venda.Domain.Interfaces;
+using Venda.Domain.Services;
 using Xunit;
 
 namespace Venda.Application.Tests.Handlers;
@@ -23,6 +25,7 @@ public class CriarVendaHandlerTests
     private readonly IClienteService _clienteService;
     private readonly IMediator _mediator;
     private readonly ILogger<CriarVendaHandler> _logger;
+    private readonly IPoliticaDesconto _politicaDesconto;
     private readonly CriarVendaHandler _handler;
 
     public CriarVendaHandlerTests()
@@ -32,13 +35,15 @@ public class CriarVendaHandlerTests
         _clienteService = Substitute.For<IClienteService>();
         _mediator = Substitute.For<IMediator>();
         _logger = Substitute.For<ILogger<CriarVendaHandler>>();
+        _politicaDesconto = new PoliticaDesconto();
 
         _handler = new CriarVendaHandler(
             _vendaRepository,
             _idempotencyStore,
             _clienteService,
             _mediator,
-            _logger);
+            _logger,
+            _politicaDesconto);
     }
 
     [Fact]
@@ -82,7 +87,7 @@ public class CriarVendaHandlerTests
         await _vendaRepository.Received(1).AdicionarAsync(
             Arg.Is<VendaAgregado>(v => 
                 v.ClienteId == clienteId && 
-                v.Filial == filialId.ToString() &&
+                v.FilialId == filialId &&
                 v.Status == StatusVenda.Ativa &&
                 v.Produtos.Count == 1),
             Arg.Any<CancellationToken>());

@@ -50,8 +50,7 @@ public class VendaRepository : IVendaRepository
         
         if (filialId.HasValue)
         {
-            var filialStr = filialId.Value.ToString();
-            query = query.Where(v => v.Filial == filialStr);
+            query = query.Where(v => v.FilialId == filialId.Value);
         }
         
         if (status.HasValue)
@@ -123,10 +122,9 @@ public class VendaRepository : IVendaRepository
     
     public async Task<int> ObterUltimoNumeroPorFilialAsync(Guid filialId, CancellationToken ct = default)
     {
-        var filialStr = filialId.ToString();
         var ultimoNumero = await _context.Vendas
             .AsNoTracking()
-            .Where(v => v.Filial == filialStr)
+            .Where(v => v.FilialId == filialId)
             .MaxAsync(v => (int?)v.NumeroVenda, ct);
         
         return ultimoNumero ?? 0;

@@ -2,7 +2,7 @@ namespace Venda.Domain.Enums;
 
 public enum StatusVenda
 {
-    Ativa,
-    Cancelada,
-    PendenteValidacao
+    Ativa = 0,
+    Cancelada = 1,
+    PendenteValidacao = 2
 }

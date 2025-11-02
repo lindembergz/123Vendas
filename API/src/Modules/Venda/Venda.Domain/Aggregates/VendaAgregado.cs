@@ -1,17 +1,21 @@
 using _123Vendas.Shared.Common;
 using _123Vendas.Shared.Events;
+using _123Vendas.Shared.Interfaces;
 using Venda.Domain.Enums;
+using Venda.Domain.Interfaces;
 using Venda.Domain.ValueObjects;
 
 namespace Venda.Domain.Aggregates;
 
-public class VendaAgregado
+public class VendaAgregado : IAggregateRoot
 {
+    private readonly IPoliticaDesconto _politicaDesconto;
+    
     public Guid Id { get; private set; } = Guid.NewGuid();
     public int NumeroVenda { get; private set; }
     public DateTime Data { get; private set; } = DateTime.UtcNow;
     public Guid ClienteId { get; private set; }
-    public string Filial { get; private set; } = string.Empty;
+    public Guid FilialId { get; private set; }
     public StatusVenda Status { get; private set; } = StatusVenda.Ativa;
     
     private readonly List<ItemVenda> _produtos = new();
@@ -23,19 +27,31 @@ public class VendaAgregado
     private readonly List<IDomainEvent> _domainEvents = new();
     public IReadOnlyCollection<IDomainEvent> DomainEvents => _domainEvents.AsReadOnly();
     
-    public static VendaAgregado Criar(Guid clienteId, string filial)
+    // Construtor privado para EF Core
+    private VendaAgregado() 
+    {
+        _politicaDesconto = null!; // EF Core irá definir via reflection
+    }
+    
+    // Construtor com injeção de dependência
+    public VendaAgregado(IPoliticaDesconto politicaDesconto)
+    {
+        _politicaDesconto = politicaDesconto ?? throw new ArgumentNullException(nameof(politicaDesconto));
+    }
+    
+    public static VendaAgregado Criar(Guid clienteId, Guid filialId, IPoliticaDesconto politicaDesconto)
     {
         if (clienteId == Guid.Empty)
             throw new ArgumentException("ClienteId é obrigatório.", nameof(clienteId));
         
-        if (string.IsNullOrWhiteSpace(filial))
-            throw new ArgumentException("Filial é obrigatória.", nameof(filial));
+        if (filialId == Guid.Empty)
+            throw new ArgumentException("FilialId é obrigatório.", nameof(filialId));
         
-        var venda = new VendaAgregado
+        var venda = new VendaAgregado(politicaDesconto)
         {
             ClienteId = clienteId,
-            Filial = filial,
-            NumeroVenda = 0 // Será definido pelo repositório
+            FilialId = filialId,
+            NumeroVenda = 0 // Será definido pelo repositório após persistência
         };
         
         // Evento será adicionado após definir NumeroVenda no repositório
@@ -59,28 +75,39 @@ public class VendaAgregado
         if (item.Quantidade <= 0)
             return Result.Failure("Quantidade deve ser maior que zero.");
         
-        if (item.ValorUnitario <= 0)
-            return Result.Failure("Valor unitário deve ser maior que zero.");
+        if (item.ValorUnitario <= 0 || item.ValorUnitario > 999999.99m)
+            return Result.Failure("Valor unitário deve ser maior que zero e menor que 999999.99.");
         
-        // Conta quantos itens do mesmo produto já existem
-        var quantidadeExistente = _produtos
-            .Where(i => i.ProdutoId == item.ProdutoId)
-            .Sum(i => i.Quantidade);
-        
+        var quantidadeExistente = ObterQuantidadeTotalPorProduto(item.ProdutoId);
         var quantidadeTotal = quantidadeExistente + item.Quantidade;
         
-        // Valida regra: não permitir mais de 20 itens iguais
-        if (quantidadeTotal > 20)
+        // Valida usando a política de desconto centralizada
+        if (!_politicaDesconto.PermiteVenda(quantidadeTotal))
             return Result.Failure("Não é permitido vender mais de 20 unidades do mesmo produto.");
         
-        // Calcula desconto baseado na quantidade total
-        var desconto = CalcularDesconto(quantidadeTotal);
-        var itemComDesconto = item.WithDesconto(desconto);
+        // Calcula desconto usando a política centralizada
+        var desconto = _politicaDesconto.Calcular(quantidadeTotal);
         
-        _produtos.Add(itemComDesconto);
+        // Consolida itens do mesmo produto em uma única linha
+        var itemExistente = _produtos.FirstOrDefault(i => i.ProdutoId == item.ProdutoId);
+        if (itemExistente != null)
+        {
+            _produtos.Remove(itemExistente);
+            var itemConsolidado = itemExistente with
+            {
+                Quantidade = quantidadeTotal,
+                Desconto = desconto
+            };
+            _produtos.Add(itemConsolidado);
+        }
+        else
+        {
+            var itemComDesconto = item.WithDesconto(desconto);
+            _produtos.Add(itemComDesconto);
+        }
         
-        // Recalcula descontos de todos os itens do mesmo produto
-        RecalcularDescontosProduto(item.ProdutoId);
+        // Recalcula todos os descontos para garantir consistência
+        RecalcularTodosOsDescontos();
         
         // Adiciona evento de alteração
         AddDomainEvent(new CompraAlterada(Id, new[] { item.ProdutoId }));
@@ -109,7 +136,10 @@ public class VendaAgregado
             return Result.Failure($"Produto {produtoId} não encontrado na venda.");
         
         _produtos.Remove(item);
-        RecalcularDescontosProduto(produtoId);
+        
+        // Recalcula todos os descontos para garantir consistência
+        RecalcularTodosOsDescontos();
+        
         AddDomainEvent(new ItemCancelado(Id, produtoId));
         
         return Result.Success();
@@ -120,31 +150,28 @@ public class VendaAgregado
         Status = StatusVenda.PendenteValidacao;
     }
     
-    private decimal CalcularDesconto(int quantidade)
+    private void RecalcularTodosOsDescontos()
     {
-        return quantidade switch
-        {
-            < 4 => 0m,
-            >= 4 and < 10 => 0.10m,
-            >= 10 and <= 20 => 0.20m,
-            _ => 0m
-        };
-    }
-    
-    private void RecalcularDescontosProduto(Guid produtoId)
-    {
-        var itensProduto = _produtos.Where(i => i.ProdutoId == produtoId).ToList();
-        var quantidadeTotal = itensProduto.Sum(i => i.Quantidade);
-        var desconto = CalcularDesconto(quantidadeTotal);
+        var grupos = _produtos.GroupBy(i => i.ProdutoId);
         
-        for (int i = 0; i < _produtos.Count; i++)
+        foreach (var grupo in grupos)
         {
-            if (_produtos[i].ProdutoId == produtoId && _produtos[i].Desconto != desconto)
+            var quantidadeTotal = grupo.Sum(i => i.Quantidade);
+            var desconto = _politicaDesconto.Calcular(quantidadeTotal);
+            
+            foreach (var item in grupo)
             {
-                _produtos[i] = _produtos[i].WithDesconto(desconto);
+                var index = _produtos.IndexOf(item);
+                if (index >= 0 && _produtos[index].Desconto != desconto)
+                {
+                    _produtos[index] = item with { Desconto = desconto };
+                }
             }
         }
     }
+    
+    private int ObterQuantidadeTotalPorProduto(Guid produtoId)
+        => _produtos.Where(i => i.ProdutoId == produtoId).Sum(i => i.Quantidade);
     
     private void AddDomainEvent(IDomainEvent @event)
     {
@@ -155,6 +182,4 @@ public class VendaAgregado
     {
         _domainEvents.Clear();
     }
-    
-    private VendaAgregado() { } // EF Core
 }

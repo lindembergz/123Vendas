@@ -1,17 +1,21 @@
 using FluentAssertions;
 using Venda.Domain.Aggregates;
 using Venda.Domain.Enums;
+using Venda.Domain.Interfaces;
+using Venda.Domain.Services;
 using Venda.Domain.ValueObjects;
 
 namespace Venda.Domain.Tests;
 
 public class VendaAgregadoTests
 {
+    private readonly IPoliticaDesconto _politicaDesconto = new PoliticaDesconto();
+    
     [Fact]
     public void AdicionarItem_ComMenosDe4Itens_NaoDeveAplicarDesconto()
     {
         // Arrange
-        var venda = VendaAgregado.Criar(Guid.NewGuid(), "Filial1");
+        var venda = VendaAgregado.Criar(Guid.NewGuid(), Guid.NewGuid(), _politicaDesconto);
         var produtoId = Guid.NewGuid();
         
         // Act
@@ -23,7 +27,8 @@ public class VendaAgregadoTests
         result1.IsSuccess.Should().BeTrue();
         result2.IsSuccess.Should().BeTrue();
         result3.IsSuccess.Should().BeTrue();
-        venda.Produtos.Should().HaveCount(3);
+        venda.Produtos.Should().HaveCount(1, "itens do mesmo produto devem ser consolidados em uma linha");
+        venda.Produtos[0].Quantidade.Should().Be(3);
         venda.Produtos.All(p => p.Desconto == 0m).Should().BeTrue();
         venda.ValorTotal.Should().Be(300m);
     }
@@ -32,7 +37,7 @@ public class VendaAgregadoTests
     public void AdicionarItem_Com4A9ItensIguais_DeveAplicar10PorcentoDesconto()
     {
         // Arrange
-        var venda = VendaAgregado.Criar(Guid.NewGuid(), "Filial1");
+        var venda = VendaAgregado.Criar(Guid.NewGuid(), Guid.NewGuid(), _politicaDesconto);
         var produtoId = Guid.NewGuid();
         
         // Act
@@ -42,7 +47,8 @@ public class VendaAgregadoTests
         }
         
         // Assert
-        venda.Produtos.Should().HaveCount(5);
+        venda.Produtos.Should().HaveCount(1, "itens do mesmo produto devem ser consolidados");
+        venda.Produtos[0].Quantidade.Should().Be(5);
         venda.Produtos.All(p => p.Desconto == 0.10m).Should().BeTrue();
         venda.ValorTotal.Should().Be(450m); // 5 * 100 * 0.9 = 450
     }
@@ -51,7 +57,7 @@ public class VendaAgregadoTests
     public void AdicionarItem_Com10A20ItensIguais_DeveAplicar20PorcentoDesconto()
     {
         // Arrange
-        var venda = VendaAgregado.Criar(Guid.NewGuid(), "Filial1");
+        var venda = VendaAgregado.Criar(Guid.NewGuid(), Guid.NewGuid(), _politicaDesconto);
         var produtoId = Guid.NewGuid();
         
         // Act
@@ -61,7 +67,8 @@ public class VendaAgregadoTests
         }
         
         // Assert
-        venda.Produtos.Should().HaveCount(15);
+        venda.Produtos.Should().HaveCount(1, "itens do mesmo produto devem ser consolidados");
+        venda.Produtos[0].Quantidade.Should().Be(15);
         venda.Produtos.All(p => p.Desconto == 0.20m).Should().BeTrue();
         venda.ValorTotal.Should().Be(1200m); // 15 * 100 * 0.8 = 1200
     }
@@ -70,7 +77,7 @@ public class VendaAgregadoTests
     public void AdicionarItem_ComMaisDe20ItensIguais_DeveRetornarFailure()
     {
         // Arrange
-        var venda = VendaAgregado.Criar(Guid.NewGuid(), "Filial1");
+        var venda = VendaAgregado.Criar(Guid.NewGuid(), Guid.NewGuid(), _politicaDesconto);
         var produtoId = Guid.NewGuid();
         
         // Adiciona 20 itens
@@ -85,14 +92,15 @@ public class VendaAgregadoTests
         // Assert
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("mais de 20 unidades");
-        venda.Produtos.Should().HaveCount(20);
+        venda.Produtos.Should().HaveCount(1, "deve ter apenas 1 linha consolidada");
+        venda.Produtos[0].Quantidade.Should().Be(20);
     }
     
     [Fact]
     public void AdicionarItem_ComQuantidadeMultipla_DeveAplicarDescontoCorreto()
     {
         // Arrange
-        var venda = VendaAgregado.Criar(Guid.NewGuid(), "Filial1");
+        var venda = VendaAgregado.Criar(Guid.NewGuid(), Guid.NewGuid(), _politicaDesconto);
         var produtoId = Guid.NewGuid();
         
         // Act - adiciona 10 itens de uma vez
@@ -109,7 +117,7 @@ public class VendaAgregadoTests
     public void Cancelar_DeveAlterarStatusParaCancelado()
     {
         // Arrange
-        var venda = VendaAgregado.Criar(Guid.NewGuid(), "Filial1");
+        var venda = VendaAgregado.Criar(Guid.NewGuid(), Guid.NewGuid(), _politicaDesconto);
         
         // Act
         var result = venda.Cancelar();
@@ -123,7 +131,7 @@ public class VendaAgregadoTests
     public void Cancelar_VendaJaCancelada_DeveRetornarFailure()
     {
         // Arrange
-        var venda = VendaAgregado.Criar(Guid.NewGuid(), "Filial1");
+        var venda = VendaAgregado.Criar(Guid.NewGuid(), Guid.NewGuid(), _politicaDesconto);
         venda.Cancelar();
         
         // Act
@@ -138,7 +146,7 @@ public class VendaAgregadoTests
     public void MarcarComoPendenteValidacao_DeveAlterarStatus()
     {
         // Arrange
-        var venda = VendaAgregado.Criar(Guid.NewGuid(), "Filial1");
+        var venda = VendaAgregado.Criar(Guid.NewGuid(), Guid.NewGuid(), _politicaDesconto);
         
         // Act
         venda.MarcarComoPendenteValidacao();
@@ -151,7 +159,7 @@ public class VendaAgregadoTests
     public void ValorTotal_DeveCalcularCorretamente()
     {
         // Arrange
-        var venda = VendaAgregado.Criar(Guid.NewGuid(), "Filial1");
+        var venda = VendaAgregado.Criar(Guid.NewGuid(), Guid.NewGuid(), _politicaDesconto);
         var produto1 = Guid.NewGuid();
         var produto2 = Guid.NewGuid();
         
@@ -167,7 +175,7 @@ public class VendaAgregadoTests
     public void AdicionarItem_VendaCancelada_DeveRetornarFailure()
     {
         // Arrange
-        var venda = VendaAgregado.Criar(Guid.NewGuid(), "Filial1");
+        var venda = VendaAgregado.Criar(Guid.NewGuid(), Guid.NewGuid(), _politicaDesconto);
         venda.Cancelar();
         
         // Act
@@ -182,7 +190,7 @@ public class VendaAgregadoTests
     public void AdicionarItem_RecalculaDescontoAoAtingir4Itens()
     {
         // Arrange
-        var venda = VendaAgregado.Criar(Guid.NewGuid(), "Filial1");
+        var venda = VendaAgregado.Criar(Guid.NewGuid(), Guid.NewGuid(), _politicaDesconto);
         var produtoId = Guid.NewGuid();
         
         // Act - adiciona 3 itens (sem desconto)
@@ -198,6 +206,8 @@ public class VendaAgregadoTests
         // Assert
         valorAntes.Should().Be(300m);
         venda.ValorTotal.Should().Be(360m); // 4 * 100 * 0.9 = 360
+        venda.Produtos.Should().HaveCount(1, "deve consolidar em uma linha");
+        venda.Produtos[0].Quantidade.Should().Be(4);
         venda.Produtos.All(p => p.Desconto == 0.10m).Should().BeTrue();
     }
 }

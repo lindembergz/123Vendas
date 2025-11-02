@@ -38,7 +38,7 @@ public class ObterVendaPorIdHandler : IRequestHandler<ObterVendaPorIdQuery, Vend
             venda.NumeroVenda,
             venda.Data,
             venda.ClienteId,
-            Guid.TryParse(venda.Filial, out var filialId) ? filialId : Guid.Empty,
+            venda.FilialId,
             venda.ValorTotal,
             venda.Status.ToString(),
             itensDto);

@@ -10,6 +10,7 @@ using Venda.Application.Interfaces;
 using Venda.Domain.Aggregates;
 using Venda.Domain.Enums;
 using Venda.Domain.Interfaces;
+using Venda.Domain.Services;
 using Venda.Domain.ValueObjects;
 using Xunit;
 
@@ -17,6 +18,7 @@ namespace Venda.Application.Tests.Handlers;
 
 public class CancelarVendaHandlerTests
 {
+    private readonly IPoliticaDesconto _politicaDesconto = new PoliticaDesconto();
     private readonly IVendaRepository _vendaRepository;
     private readonly IIdempotencyStore _idempotencyStore;
     private readonly IMediator _mediator;
@@ -47,7 +49,7 @@ public class CancelarVendaHandlerTests
         var filialId = Guid.NewGuid();
         var produtoId = Guid.NewGuid();
 
-        var vendaExistente = VendaAgregado.Criar(clienteId, filialId.ToString());
+        var vendaExistente = VendaAgregado.Criar(clienteId, filialId, _politicaDesconto);
         vendaExistente.DefinirNumeroVenda(1);
         vendaExistente.AdicionarItem(new ItemVenda(produtoId, 2, 100m, 0m));
         vendaExistente.ClearDomainEvents();
@@ -182,7 +184,7 @@ public class CancelarVendaHandlerTests
         var filialId = Guid.NewGuid();
         var produtoId = Guid.NewGuid();
 
-        var vendaExistente = VendaAgregado.Criar(clienteId, filialId.ToString());
+        var vendaExistente = VendaAgregado.Criar(clienteId, filialId, _politicaDesconto);
         vendaExistente.DefinirNumeroVenda(1);
         vendaExistente.AdicionarItem(new ItemVenda(produtoId, 2, 100m, 0m));
         vendaExistente.Cancelar(); // Cancelar a venda
@@ -231,7 +233,7 @@ public class CancelarVendaHandlerTests
         var filialId = Guid.NewGuid();
         var produtoId = Guid.NewGuid();
 
-        var vendaExistente = VendaAgregado.Criar(clienteId, filialId.ToString());
+        var vendaExistente = VendaAgregado.Criar(clienteId, filialId, _politicaDesconto);
         vendaExistente.DefinirNumeroVenda(1);
         vendaExistente.AdicionarItem(new ItemVenda(produtoId, 2, 100m, 0m));
         vendaExistente.ClearDomainEvents();
@@ -281,7 +283,7 @@ public class CancelarVendaHandlerTests
         var filialId = Guid.NewGuid();
         var produtoId = Guid.NewGuid();
 
-        var vendaExistente = VendaAgregado.Criar(clienteId, filialId.ToString());
+        var vendaExistente = VendaAgregado.Criar(clienteId, filialId, _politicaDesconto);
         vendaExistente.DefinirNumeroVenda(1);
         vendaExistente.AdicionarItem(new ItemVenda(produtoId, 2, 100m, 0m));
         vendaExistente.ClearDomainEvents();

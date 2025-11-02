@@ -8,11 +8,38 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
 using Polly;
 using Polly.Extensions.Http;
+using Serilog;
+using Serilog.Events;
 using System.Text.Json;
 using Venda.Infrastructure.Data;
 using Venda.Infrastructure.HealthChecks;
 
-var builder = WebApplication.CreateBuilder(args);
+// Configurar Serilog com logs estruturados
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Information()
+    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+    .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
+    .MinimumLevel.Override("System", LogEventLevel.Warning)
+    .Enrich.FromLogContext()
+    .Enrich.WithProperty("Application", "123Vendas.API")
+    .Enrich.WithProperty("Environment", Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production")
+    .WriteTo.Console(
+        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}")
+    .WriteTo.File(
+        path: "logs/123vendas-.log",
+        rollingInterval: RollingInterval.Day,
+        outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz}] [{Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}",
+        retainedFileCountLimit: 30)
+    .CreateLogger();
+
+try
+{
+    Log.Information("Iniciando 123Vendas API");
+
+    var builder = WebApplication.CreateBuilder(args);
+
+    // Configurar Serilog como provider de logging
+    builder.Host.UseSerilog();
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -26,6 +53,9 @@ builder.Services.AddDbContext<VendaDbContext>(options =>
     {
         sqliteOptions.CommandTimeout(30);
     }));
+
+// Registrar serviços de domínio
+builder.Services.AddScoped<Venda.Domain.Interfaces.IPoliticaDesconto, Venda.Domain.Services.PoliticaDesconto>();
 
 // Configurar Health Checks
 builder.Services.AddHealthChecks()
@@ -205,7 +235,19 @@ app.MapHealthChecks("/live", new HealthCheckOptions
     }
 });
 
-app.Run();
+    app.Run();
+    
+    Log.Information("123Vendas API encerrada com sucesso");
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "Erro fatal ao iniciar 123Vendas API");
+    throw;
+}
+finally
+{
+    Log.CloseAndFlush();
+}
 
 record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
 {

@@ -9,4 +9,5 @@ public record ItemVenda(
     public decimal Total => Quantidade * ValorUnitario * (1 - Desconto);
     
     public ItemVenda WithDesconto(decimal desconto) => this with { Desconto = desconto };
+    public ItemVenda WithQuantidade(int novaQuantidade) => this with { Quantidade = novaQuantidade };
 }

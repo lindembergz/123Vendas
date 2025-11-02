@@ -29,9 +29,8 @@ public class VendaConfiguration : IEntityTypeConfiguration<VendaAgregado>
         builder.Property(v => v.ClienteId)
             .IsRequired();
         
-        builder.Property(v => v.Filial)
-            .IsRequired()
-            .HasMaxLength(100);
+        builder.Property(v => v.FilialId)
+            .IsRequired();
         
         builder.Property(v => v.Status)
             .IsRequired()

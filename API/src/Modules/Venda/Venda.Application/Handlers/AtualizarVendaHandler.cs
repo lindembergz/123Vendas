@@ -126,17 +126,12 @@ public class AtualizarVendaHandler : IRequestHandler<AtualizarVendaCommand, Resu
             p.Total
         )).ToList();
 
-        // Converte Filial string para Guid (assumindo que é um Guid em formato string)
-        Guid filialId = Guid.TryParse(venda.Filial, out var parsedFilialId) 
-            ? parsedFilialId 
-            : Guid.Empty;
-
         return new VendaDto(
             venda.Id,
             venda.NumeroVenda,
             venda.Data,
             venda.ClienteId,
-            filialId,
+            venda.FilialId,
             venda.ValorTotal,
             venda.Status.ToString(),
             itensDto

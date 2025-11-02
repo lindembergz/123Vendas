@@ -1,4 +1,5 @@
 using _123Vendas.Shared.Common;
+using _123Vendas.Shared.Interfaces;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Venda.Application.Commands;
@@ -16,19 +17,22 @@ public class CriarVendaHandler : IRequestHandler<CriarVendaCommand, Result<Guid>
     private readonly IClienteService _clienteService;
     private readonly IMediator _mediator;
     private readonly ILogger<CriarVendaHandler> _logger;
+    private readonly IPoliticaDesconto _politicaDesconto;
 
     public CriarVendaHandler(
         IVendaRepository vendaRepository,
         IIdempotencyStore idempotencyStore,
         IClienteService clienteService,
         IMediator mediator,
-        ILogger<CriarVendaHandler> logger)
+        ILogger<CriarVendaHandler> logger,
+        IPoliticaDesconto politicaDesconto)
     {
         _vendaRepository = vendaRepository;
         _idempotencyStore = idempotencyStore;
         _clienteService = clienteService;
         _mediator = mediator;
         _logger = logger;
+        _politicaDesconto = politicaDesconto;
     }
 
     public async Task<Result<Guid>> Handle(CriarVendaCommand request, CancellationToken ct)
@@ -67,9 +71,8 @@ public class CriarVendaHandler : IRequestHandler<CriarVendaCommand, Result<Guid>
             clienteValido = false;
         }
 
-        // 3. Criar VendaAgregado
-        // Nota: FilialId é convertido para string pois o agregado atual usa string Filial
-        var venda = VendaAgregado.Criar(request.ClienteId, request.FilialId.ToString());
+        // 3. Criar VendaAgregado com injeção da política de desconto
+        var venda = VendaAgregado.Criar(request.ClienteId, request.FilialId, _politicaDesconto);
 
         // Se cliente não foi validado, marcar como pendente
         if (!clienteValido)
