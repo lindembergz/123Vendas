@@ -63,13 +63,41 @@ public class VendaApiClient
         try
         {
             var response = await _httpClient.PutAsJsonAsync($"/api/v1/vendas/{vendaId}", request);
-            response.EnsureSuccessStatusCode();
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"❌ Erro ao atualizar venda (Status {(int)response.StatusCode}):");
+                
+                // Tentar extrair a mensagem de erro do ProblemDetails
+                try
+                {
+                    var problemDetails = await response.Content.ReadFromJsonAsync<ProblemDetailsResponse>();
+                    if (problemDetails?.Detail != null)
+                    {
+                        Console.WriteLine($"   {problemDetails.Detail}");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"   {errorContent}");
+                    }
+                }
+                catch
+                {
+                    Console.WriteLine($"   {errorContent}");
+                }
+                
+                Console.ResetColor();
+                return null;
+            }
+            
             return await response.Content.ReadFromJsonAsync<VendaResponse>();
         }
         catch (HttpRequestException ex)
         {
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"❌ Erro ao atualizar venda: {ex.Message}");
+            Console.WriteLine($"❌ Erro de conexão ao atualizar venda: {ex.Message}");
             Console.ResetColor();
             return null;
         }
@@ -114,13 +142,41 @@ public class VendaApiClient
         try
         {
             var response = await _httpClient.DeleteAsync($"/api/v1/vendas/{vendaId}");
-            response.EnsureSuccessStatusCode();
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"❌ Erro ao cancelar venda (Status {(int)response.StatusCode}):");
+                
+                // Tentar extrair a mensagem de erro do ProblemDetails
+                try
+                {
+                    var problemDetails = await response.Content.ReadFromJsonAsync<ProblemDetailsResponse>();
+                    if (problemDetails?.Detail != null)
+                    {
+                        Console.WriteLine($"   {problemDetails.Detail}");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"   {errorContent}");
+                    }
+                }
+                catch
+                {
+                    Console.WriteLine($"   {errorContent}");
+                }
+                
+                Console.ResetColor();
+                return false;
+            }
+            
             return true;
         }
         catch (HttpRequestException ex)
         {
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"❌ Erro ao cancelar venda: {ex.Message}");
+            Console.WriteLine($"❌ Erro de conexão ao cancelar venda: {ex.Message}");
             Console.ResetColor();
             return false;
         }
@@ -176,3 +232,9 @@ public record PagedResultResponse<T>(
     public bool HasPreviousPage => PageNumber > 1;
     public bool HasNextPage => PageNumber < TotalPages;
 };
+
+// DTO para capturar erros da API (ProblemDetails)
+public record ProblemDetailsResponse(
+    string? Title,
+    string? Detail,
+    int? Status);

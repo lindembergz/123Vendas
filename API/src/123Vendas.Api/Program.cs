@@ -44,8 +44,25 @@ try
     builder.Host.UseSerilog();
 
 // Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+// Configurar Swagger/OpenAPI
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+    {
+        Title = "123Vendas API",
+        Version = "v1",
+        Description = "API para gerenciamento de vendas com regras de negócio e eventos de domínio",
+        Contact = new Microsoft.OpenApi.Models.OpenApiContact
+        {
+            Name = "123Vendas Team"
+        }
+    });
+    
+    // Adicionar descrições dos endpoints
+    options.TagActionsBy(api => new[] { api.GroupName ?? "Vendas" });
+    options.DocInclusionPredicate((name, api) => true);
+});
 
 // Registrar serviços de aplicação (MediatR, Repositories, etc.)
 builder.Services.AddApplicationServices();
@@ -166,7 +183,16 @@ var app = builder.Build();
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.UseSwagger();
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/swagger/v1/swagger.json", "123Vendas API v1");
+        options.RoutePrefix = "swagger"; // Acesso via /swagger
+        options.DocumentTitle = "123Vendas API - Documentação";
+        options.DisplayRequestDuration();
+    });
+    
+    Log.Information("Swagger UI disponível em: http://localhost:5197/swagger");
 }
 
 app.UseHttpsRedirection();

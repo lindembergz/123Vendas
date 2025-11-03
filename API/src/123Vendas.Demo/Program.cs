@@ -656,6 +656,31 @@ public class VendasDemoComApi
         _apiClient = new VendaApiClient(_apiUrl);
     }
 
+    /// <summary>
+    /// Calcula o desconto baseado na quantidade usando a mesma política da API.
+    /// </summary>
+    private static decimal CalcularDesconto(int quantidade)
+    {
+        var politicaDesconto = new PoliticaDesconto();
+        return politicaDesconto.Calcular(quantidade);
+    }
+
+    /// <summary>
+    /// Calcula o total líquido de um item (quantidade * valor * (1 - desconto))
+    /// </summary>
+    private static decimal CalcularTotalLiquido(int quantidade, decimal valorUnitario, decimal desconto)
+    {
+        return quantidade * valorUnitario * (1 - desconto);
+    }
+
+    /// <summary>
+    /// Obtém a quantidade total de um produto considerando todos os itens
+    /// </summary>
+    private static int ObterQuantidadeTotalPorProduto(List<ItemVendaDto> itens, Guid produtoId)
+    {
+        return itens.Where(i => i.ProdutoId == produtoId).Sum(i => i.Quantidade);
+    }
+
     public async Task ExecutarAsync()
     {
         // Verifica se a API está rodando
@@ -845,11 +870,33 @@ public class VendasDemoComApi
                 valoresPorNome[nome] = valor;
             }
 
-            var total = qtd * valor;
-            itens.Add(new ItemVendaDto(produtoId, qtd, valor, 0m, total));
+            // Calcular quantidade total do produto (considerando itens já adicionados)
+            var quantidadeTotalProduto = ObterQuantidadeTotalPorProduto(itens, produtoId) + qtd;
+            
+            // Calcular desconto baseado na quantidade total
+            var desconto = CalcularDesconto(quantidadeTotalProduto);
+            
+            // Calcular total líquido (com desconto)
+            var totalBruto = qtd * valor;
+            var totalLiquido = CalcularTotalLiquido(qtd, valor, desconto);
+            
+            itens.Add(new ItemVendaDto(produtoId, qtd, valor, desconto, totalLiquido));
+            
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"✅ Item '{nome}' adicionado! (Qtd: {qtd} x R$ {valor:N2} = R$ {total:N2})\n");
+            Console.Write($"✅ Item '{nome}' adicionado! ");
             Console.ResetColor();
+            Console.Write($"(Qtd: {qtd} x R$ {valor:N2} = R$ {totalBruto:N2}");
+            
+            if (desconto > 0)
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.Write($" - {desconto:P0} desconto");
+                Console.ResetColor();
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.Write($" = R$ {totalLiquido:N2}");
+                Console.ResetColor();
+            }
+            Console.WriteLine(")\n");
         }
 
         if (!itens.Any())
@@ -1003,6 +1050,18 @@ public class VendasDemoComApi
         Console.ResetColor();
         MostrarDetalheVenda(vendaAtual);
 
+        // Verificar se a venda está cancelada
+        if (vendaAtual.Status.Equals("Cancelada", StringComparison.OrdinalIgnoreCase))
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("\n⚠️  ATENÇÃO: Esta venda está CANCELADA!");
+            Console.WriteLine("   Não é possível atualizar uma venda cancelada.");
+            Console.ResetColor();
+            Console.WriteLine("\nPressione qualquer tecla para voltar ao menu...");
+            Console.ReadKey();
+            return;
+        }
+
         // Copia os itens existentes para uma lista mutável
         var itens = vendaAtual.Itens.Select(i => new ItemVendaDto(
             i.ProdutoId,
@@ -1075,14 +1134,32 @@ public class VendasDemoComApi
                     }
 
                     var novoProdutoId = Guid.NewGuid();
-                    var novoTotal = quantidade * valorUnitario;
-                    itens.Add(new ItemVendaDto(novoProdutoId, quantidade, valorUnitario, 0m, novoTotal));
+                    
+                    // Calcular desconto e total líquido
+                    var quantidadeTotal = ObterQuantidadeTotalPorProduto(itens, novoProdutoId) + quantidade;
+                    var descontoItem = CalcularDesconto(quantidadeTotal);
+                    var totalBrutoItem = quantidade * valorUnitario;
+                    var totalLiquidoItem = CalcularTotalLiquido(quantidade, valorUnitario, descontoItem);
+                    
+                    itens.Add(new ItemVendaDto(novoProdutoId, quantidade, valorUnitario, descontoItem, totalLiquidoItem));
                     nomesProdutos[novoProdutoId] = nomeProduto;
                     modificado = true;
 
                     Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine($"✅ Item '{nomeProduto}' adicionado! (Qtd: {quantidade} x R$ {valorUnitario:N2} = R$ {novoTotal:N2})");
+                    Console.Write($"✅ Item '{nomeProduto}' adicionado! ");
                     Console.ResetColor();
+                    Console.Write($"(Qtd: {quantidade} x R$ {valorUnitario:N2} = R$ {totalBrutoItem:N2}");
+                    
+                    if (descontoItem > 0)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                        Console.Write($" - {descontoItem:P0} desconto");
+                        Console.ResetColor();
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.Write($" = R$ {totalLiquidoItem:N2}");
+                        Console.ResetColor();
+                    }
+                    Console.WriteLine(")");
                     break;
 
                 case "2": // Remover por quantidade
@@ -1129,12 +1206,16 @@ public class VendasDemoComApi
                     else
                     {
                         var novaQuantidade = itemRemover.Quantidade - qtdRemover;
-                        var novoTotalItem = novaQuantidade * itemRemover.ValorUnitario;
+                        
+                        // Recalcular desconto e total com a nova quantidade
+                        var novoDesconto = CalcularDesconto(novaQuantidade);
+                        var novoTotalItem = CalcularTotalLiquido(novaQuantidade, itemRemover.ValorUnitario, novoDesconto);
+                        
                         itens[indiceRemover - 1] = new ItemVendaDto(
                             itemRemover.ProdutoId,
                             novaQuantidade,
                             itemRemover.ValorUnitario,
-                            0m,
+                            novoDesconto,
                             novoTotalItem
                         );
                         Console.ForegroundColor = ConsoleColor.Green;
@@ -1246,9 +1327,9 @@ public class VendasDemoComApi
             return;
         }
 
-        Console.WriteLine("┌────┬─────────────────────┬──────────┬──────────────┬──────────────┐");
-        Console.WriteLine("│ Nº │ Produto             │ Qtd      │ Valor Unit.  │ Total        │");
-        Console.WriteLine("├────┼─────────────────────┼──────────┼──────────────┼──────────────┤");
+        Console.WriteLine("┌────┬────────────┬─────────────────────┬──────────┬──────────────┬──────────────┐");
+        Console.WriteLine("│ Nº │ ID Produto │ Produto             │ Qtd      │ Valor Unit.  │ Total        │");
+        Console.WriteLine("├────┼────────────┼─────────────────────┼──────────┼──────────────┼──────────────┤");
 
         for (int i = 0; i < itens.Count; i++)
         {
@@ -1256,11 +1337,16 @@ public class VendasDemoComApi
             var nome = nomesProdutos.ContainsKey(item.ProdutoId) 
                 ? nomesProdutos[item.ProdutoId] 
                 : $"Produto {i + 1}";
+            var produtoId = item.ProdutoId.ToString().Substring(0, 8);
             
-            Console.WriteLine($"│ {i + 1,-2} │ {nome,-19} │ {item.Quantidade,-8} │ R$ {item.ValorUnitario,8:N2} │ R$ {item.Total,8:N2} │");
+            Console.Write($"│ {i + 1,-2} │ ");
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.Write($"{produtoId,-10}");
+            Console.ResetColor();
+            Console.WriteLine($" │ {nome,-19} │ {item.Quantidade,-8} │ R$ {item.ValorUnitario,8:N2} │ R$ {item.Total,8:N2} │");
         }
 
-        Console.WriteLine("└────┴─────────────────────┴──────────┴──────────────┴──────────────┘");
+        Console.WriteLine("└────┴────────────┴─────────────────────┴──────────┴──────────────┴──────────────┘");
         
         var totalGeral = itens.Sum(i => i.Total);
         Console.ForegroundColor = ConsoleColor.Green;
@@ -1302,6 +1388,18 @@ public class VendasDemoComApi
         Console.WriteLine("✅ Venda encontrada!\n");
         Console.ResetColor();
         MostrarDetalheVenda(venda);
+
+        // Verificar se a venda já está cancelada
+        if (venda.Status.Equals("Cancelada", StringComparison.OrdinalIgnoreCase))
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("\n⚠️  ATENÇÃO: Esta venda já está CANCELADA!");
+            Console.WriteLine("   Não é necessário cancelar novamente.");
+            Console.ResetColor();
+            Console.WriteLine("\nPressione qualquer tecla para voltar ao menu...");
+            Console.ReadKey();
+            return;
+        }
 
         Console.ForegroundColor = ConsoleColor.Yellow;
         Console.Write("\n⚠️  Confirma o cancelamento desta venda? (S/N): ");
@@ -1355,10 +1453,19 @@ public class VendasDemoComApi
         Console.WriteLine($"║  Data: {venda.Data:dd/MM/yyyy HH:mm,-50} ║");
         Console.WriteLine("╠════════════════════════════════════════════════════════════╣");
 
+        int itemNumero = 1;
         foreach (var item in venda.Itens)
         {
             var descInfo = item.Desconto > 0 ? $" (Desc: {item.Desconto:P0})" : "";
-            Console.WriteLine($"║  • {item.Quantidade}x R$ {item.ValorUnitario:N2}{descInfo,-30} = R$ {item.Total,8:N2} ║");
+            var produtoId = item.ProdutoId.ToString().Substring(0, 8); // Primeiros 8 caracteres do GUID
+            
+            Console.Write($"║  {itemNumero}. ");
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.Write($"[{produtoId}]");
+            Console.ResetColor();
+            Console.WriteLine($" {item.Quantidade}x R$ {item.ValorUnitario:N2}{descInfo,-15} = R$ {item.Total,8:N2} ║");
+            
+            itemNumero++;
         }
 
         Console.WriteLine("╠════════════════════════════════════════════════════════════╣");
