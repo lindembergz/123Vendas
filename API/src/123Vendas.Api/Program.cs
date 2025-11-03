@@ -253,12 +253,19 @@ app.MapHealthChecks("/live", new HealthCheckOptions
     }
 });
 
-    // Aplicar migrações automaticamente no startup
-    using (var scope = app.Services.CreateScope())
+    // Aplicar migrações automaticamente no startup (exceto em ambiente de testes)
+    if (!app.Environment.IsEnvironment("Testing"))
     {
-        var dbContext = scope.ServiceProvider.GetRequiredService<VendaDbContext>();
-        dbContext.Database.Migrate();
-        Log.Information("Migrações aplicadas com sucesso");
+        using (var scope = app.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<VendaDbContext>();
+            dbContext.Database.Migrate();
+            Log.Information("Migrações aplicadas com sucesso");
+        }
+    }
+    else
+    {
+        Log.Information("Ambiente de testes detectado - migrações automáticas desabilitadas");
     }
 
     app.Run();

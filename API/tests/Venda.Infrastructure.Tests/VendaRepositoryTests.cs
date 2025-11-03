@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Venda.Domain.Aggregates;
+using Venda.Domain.Services;
 using Venda.Domain.ValueObjects;
 using Venda.Infrastructure.Data;
 using Venda.Infrastructure.Repositories;
@@ -29,7 +30,10 @@ public class VendaRepositoryTests : IDisposable
     public async Task AdicionarAsync_DevePersistirVendaCorretamente()
     {
         // Arrange
-        var venda = VendaAgregado.Criar(Guid.NewGuid(), "Filial Centro");
+        var clienteId = Guid.NewGuid();
+        var filialId = Guid.NewGuid();
+        var politicaDesconto = new PoliticaDesconto();
+        var venda = VendaAgregado.Criar(clienteId, filialId, politicaDesconto);
         var item = new ItemVenda(Guid.NewGuid(), 2, 100m);
         venda.AdicionarItem(item);
         
@@ -39,8 +43,8 @@ public class VendaRepositoryTests : IDisposable
         // Assert
         var vendaSalva = await _repository.ObterPorIdAsync(venda.Id);
         vendaSalva.Should().NotBeNull();
-        vendaSalva!.ClienteId.Should().Be(venda.ClienteId);
-        vendaSalva.Filial.Should().Be("Filial Centro");
+        vendaSalva!.ClienteId.Should().Be(clienteId);
+        vendaSalva.FilialId.Should().Be(filialId);
         vendaSalva.Produtos.Should().HaveCount(1);
         vendaSalva.Produtos[0].ProdutoId.Should().Be(item.ProdutoId);
         vendaSalva.Produtos[0].Quantidade.Should().Be(2);
@@ -51,7 +55,8 @@ public class VendaRepositoryTests : IDisposable
     public async Task ObterPorIdAsync_DeveRetornarVendaComItens()
     {
         // Arrange
-        var venda = VendaAgregado.Criar(Guid.NewGuid(), "Filial Sul");
+        var politicaDesconto = new PoliticaDesconto();
+        var venda = VendaAgregado.Criar(Guid.NewGuid(), Guid.NewGuid(), politicaDesconto);
         var item1 = new ItemVenda(Guid.NewGuid(), 3, 50m);
         var item2 = new ItemVenda(Guid.NewGuid(), 1, 150m);
         venda.AdicionarItem(item1);
@@ -72,9 +77,10 @@ public class VendaRepositoryTests : IDisposable
     public async Task ListarAsync_DeveRetornarTodasVendas()
     {
         // Arrange
-        var venda1 = VendaAgregado.Criar(Guid.NewGuid(), "Filial A");
-        var venda2 = VendaAgregado.Criar(Guid.NewGuid(), "Filial B");
-        var venda3 = VendaAgregado.Criar(Guid.NewGuid(), "Filial C");
+        var politicaDesconto = new PoliticaDesconto();
+        var venda1 = VendaAgregado.Criar(Guid.NewGuid(), Guid.NewGuid(), politicaDesconto);
+        var venda2 = VendaAgregado.Criar(Guid.NewGuid(), Guid.NewGuid(), politicaDesconto);
+        var venda3 = VendaAgregado.Criar(Guid.NewGuid(), Guid.NewGuid(), politicaDesconto);
         
         await _repository.AdicionarAsync(venda1);
         await _repository.AdicionarAsync(venda2);
@@ -94,7 +100,8 @@ public class VendaRepositoryTests : IDisposable
     public async Task AtualizarAsync_DeveModificarVenda()
     {
         // Arrange
-        var venda = VendaAgregado.Criar(Guid.NewGuid(), "Filial Original");
+        var politicaDesconto = new PoliticaDesconto();
+        var venda = VendaAgregado.Criar(Guid.NewGuid(), Guid.NewGuid(), politicaDesconto);
         var item = new ItemVenda(Guid.NewGuid(), 1, 100m);
         venda.AdicionarItem(item);
         
@@ -116,7 +123,8 @@ public class VendaRepositoryTests : IDisposable
     public async Task ExisteAsync_DeveRetornarTrueQuandoVendaExiste()
     {
         // Arrange
-        var venda = VendaAgregado.Criar(Guid.NewGuid(), "Filial Teste");
+        var politicaDesconto = new PoliticaDesconto();
+        var venda = VendaAgregado.Criar(Guid.NewGuid(), Guid.NewGuid(), politicaDesconto);
         await _repository.AdicionarAsync(venda);
         
         // Act

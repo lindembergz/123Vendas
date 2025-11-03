@@ -3,8 +3,12 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using System.Net;
 using System.Text.Json;
 
-namespace Venda.Integration.Tests;
+namespace Venda.Integration.Tests.Endpoints;
 
+/// <summary>
+/// Testes de integração para os endpoints de Health Check da API.
+/// Valida os endpoints /health, /ready e /live para monitoramento da aplicação.
+/// </summary>
 public class HealthCheckEndpointsTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private readonly WebApplicationFactory<Program> _factory;

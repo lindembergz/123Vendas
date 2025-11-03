@@ -21,13 +21,17 @@ public class VendaUpdater
 
     /// <summary>
     /// Atualiza os itens de uma venda de forma inteligente:
+    /// - Consolida itens duplicados (mesmo ProdutoId) somando suas quantidades
     /// - Remove itens que não estão mais na lista
     /// - Adiciona novos itens
     /// - Ajusta quantidades de itens existentes
     /// </summary>
     public Result AtualizarItens(VendaAgregado venda, IReadOnlyList<ItemVendaDto> itensDto)
     {
-        var produtosNovos = itensDto.Select(i => i.ProdutoId).ToHashSet();
+        // 0. Consolidar itens duplicados antes de processar (Requisito 5.3)
+        var itensConsolidados = ConsolidarItensDuplicados(itensDto);
+        
+        var produtosNovos = itensConsolidados.Select(i => i.ProdutoId).ToHashSet();
         var produtosExistentes = venda.Produtos.Select(p => p.ProdutoId).ToHashSet();
 
         // 1. Remover itens que não estão mais na lista
@@ -36,7 +40,7 @@ public class VendaUpdater
             return result;
 
         // 2. Atualizar ou adicionar itens
-        foreach (var itemDto in itensDto)
+        foreach (var itemDto in itensConsolidados)
         {
             result = AtualizarOuAdicionarItem(venda, itemDto);
             if (result.IsFailure)
@@ -44,6 +48,34 @@ public class VendaUpdater
         }
 
         return Result.Success();
+    }
+
+    /// <summary>
+    /// Consolida itens com o mesmo ProdutoId, somando suas quantidades.
+    /// Atende ao requisito 5.3: itens duplicados devem ser consolidados em uma única linha.
+    /// </summary>
+    private List<ItemVendaDto> ConsolidarItensDuplicados(IReadOnlyList<ItemVendaDto> itensDto)
+    {
+        var itensConsolidados = itensDto
+            .GroupBy(i => i.ProdutoId)
+            .Select(g => new ItemVendaDto(
+                ProdutoId: g.Key,
+                Quantidade: g.Sum(x => x.Quantidade),
+                ValorUnitario: g.First().ValorUnitario, // Usa o valor unitário do primeiro item
+                Desconto: 0m, // Desconto será recalculado pelo agregado
+                Total: 0m // Total será recalculado pelo agregado
+            ))
+            .ToList();
+
+        // Log se houver consolidação
+        if (itensConsolidados.Count < itensDto.Count)
+        {
+            _logger.LogInformation(
+                "Itens duplicados consolidados: {ItensOriginais} itens → {ItensConsolidados} itens únicos",
+                itensDto.Count, itensConsolidados.Count);
+        }
+
+        return itensConsolidados;
     }
 
     private Result RemoverItensAusentes(
