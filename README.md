@@ -1,4 +1,4 @@
-# 123Vendas - API de Vendas teste
+# 123Vendas - API de Vendas
 
 API RESTful desenvolvida em .NET 9 para gerenciamento de vendas com arquitetura em camadas e eventos de domínio.
 
