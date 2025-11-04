@@ -408,7 +408,7 @@ Todas as exceções técnicas são logadas automaticamente com:
 
 ### Diferenciais Técnicos
 
--  **204 Testes Automatizados**: Cobertura completa (unitários, aplicação, infraestrutura e integração)
+-  **218 Testes Automatizados**: Api, Cobertura completa (unitários, aplicação, infraestrutura e integração)
 -  **Outbox Pattern**: Garantia de entrega de eventos com consistência transacional
 -  **Health Checks**: Monitoramento de saúde (Database, Outbox, Integrações)
 -  **Circuit Breaker**: Resiliência em integrações externas com Polly
@@ -424,7 +424,7 @@ Todas as exceções técnicas são logadas automaticamente com:
 -  **SOLID**: Princípios aplicados em todo o código
 -  **DDD**: Domain-Driven Design com entidades ricas
 -  **Injeção de Dependência**: Inversão de controle nativa do .NET
--  **Testes Abrangentes**: 204 testes com 100% de aprovação
+-  **Testes Abrangentes**: 218 testes com 100% de aprovação
 -  **Tratamento de Erros**: Result Pattern sem exceções de negócio
 -  **Código Limpo**: Seguindo Object Calisthenics e Clean Code
 -  **Documentação**: Swagger/OpenAPI completo
