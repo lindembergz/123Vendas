@@ -8,13 +8,13 @@ Sistema de vendas com CRUD completo, regras de negócio centralizadas e eventos 
 
 ### Funcionalidades Principais
 
-- ✅ **CRUD de Vendas**: Criar, listar, atualizar e cancelar vendas
-- ✅ **Regras de Desconto**: Descontos automáticos baseados em quantidade
-- ✅ **Eventos de Domínio**: CompraCriada, CompraAlterada, CompraCancelada, ItemCancelado
-- ✅ **Validações**: FluentValidation para comandos
-- ✅ **Logs Estruturados**: Serilog com JSON
-- ✅ **Health Checks**: Monitoramento de saúde da aplicação
-- ✅ **Testes**: 204 testes (unitários, aplicação e integração)
+- **CRUD de Vendas**: Criar, listar, atualizar e cancelar vendas
+- **Regras de Desconto**: Descontos automáticos baseados em quantidade
+- **Eventos de Domínio**: CompraCriada, CompraAlterada, CompraCancelada, ItemCancelado
+- **Validações**: FluentValidation para comandos
+- **Logs Estruturados**: Serilog com JSON
+- **Health Checks**: Monitoramento de saúde da aplicação
+- **Testes**: 204 testes (unitários, aplicação e integração)
 
 ### Regras de Negócio
 
@@ -210,12 +210,13 @@ dotnet test /p:CollectCoverage=true
 
 | Categoria | Quantidade | Descrição |
 |-----------|------------|-----------|
+| **API**    |  14 | Testes de tratamento de exceções | 
 | **Domain** | 47 | Testes unitários de entidades, value objects e regras de negócio |
 | **Application** | 49 | Testes de handlers (23), validators (19) e services (7) |
 | **Infrastructure** | 27 | Testes de repositórios, outbox pattern e persistência |
 | **Integration** | 63 | Testes end-to-end dos endpoints da API e infraestrutura |
 | **Shared** | 18 | Testes de componentes compartilhados, integração e services |
-| **Total** | **204** | **100% de aprovação** |
+| **Total** | **218** | **100% de aprovação** |
 
 
 ### Implementação dos Testes de Integração
@@ -334,18 +335,18 @@ A API implementa um sistema robusto de tratamento de erros que combina duas abor
 
 ### Result Pattern (Erros de Negócio)
 Erros previsíveis de regras de negócio são tratados via **Result Pattern**, sem uso de exceções:
-- ✅ Validações de entrada
-- ✅ Regras de negócio violadas
-- ✅ Recursos não encontrados
-- ✅ Retorna status 400 (Bad Request) ou 404 (Not Found)
+-  Validações de entrada
+-  Regras de negócio violadas
+-  Recursos não encontrados
+-  Retorna status 400 (Bad Request) ou 404 (Not Found)
 
 ### Global Exception Filter (Erros Técnicos)
 Exceções técnicas inesperadas são capturadas automaticamente por um **Exception Filter centralizado**:
-- ✅ Falhas de banco de dados (DbUpdateException) → 500
-- ✅ Timeouts de operação (TimeoutException) → 504
-- ✅ Erros de comunicação externa (HttpRequestException) → 502
-- ✅ Requisições canceladas (TaskCanceledException) → 499
-- ✅ Exceções genéricas → 500
+-  Falhas de banco de dados (DbUpdateException) → 500
+-  Timeouts de operação (TimeoutException) → 504
+-  Erros de comunicação externa (HttpRequestException) → 502
+-  Requisições canceladas (TaskCanceledException) → 499
+-  Exceções genéricas → 500
 
 ### Formato de Resposta (RFC 7807)
 
@@ -380,11 +381,11 @@ Todas as respostas de erro seguem o padrão **ProblemDetails** (RFC 7807):
 
 ### Benefícios
 
-- ✅ **Código limpo**: Endpoints sem blocos try/catch duplicados
-- ✅ **Consistência**: Todas as respostas de erro seguem o mesmo formato
-- ✅ **Observabilidade**: Logs estruturados com TraceId para rastreamento
-- ✅ **Segurança**: Proteção contra vazamento de informações sensíveis
-- ✅ **Manutenibilidade**: Tratamento centralizado em um único ponto
+-  **Código limpo**: Endpoints sem blocos try/catch duplicados
+-  **Consistência**: Todas as respostas de erro seguem o mesmo formato
+-  **Observabilidade**: Logs estruturados com TraceId para rastreamento
+-  **Segurança**: Proteção contra vazamento de informações sensíveis
+-  **Manutenibilidade**: Tratamento centralizado em um único ponto
 
 ## Logs
 
@@ -397,12 +398,12 @@ Formato estruturado com propriedades JSON para facilitar análise.
 ### Logging de Exceções
 
 Todas as exceções técnicas são logadas automaticamente com:
-- ✅ Tipo da exceção
-- ✅ Mensagem de erro
-- ✅ Stack trace completo
-- ✅ TraceId para correlação
-- ✅ Path da requisição HTTP
-- ✅ Timestamp
+-  Tipo da exceção
+-  Mensagem de erro
+-  Stack trace completo
+-  TraceId para correlação
+-  Path da requisição HTTP
+-  Timestamp
 
 ## 🎯 Destaques do Projeto
 
