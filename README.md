@@ -189,7 +189,8 @@ Quando Testcontainers seria útil:
 - **Modular Monolith**: Módulos independentes (Venda, CRM, Estoque) preparados para microserviços
 - **CQRS**: Comandos e Queries separados com MediatR
 - **Domain Events**: Comunicação assíncrona entre módulos
-- **Result Pattern**: Tratamento de erros sem exceções
+- **Result Pattern**: Tratamento de erros de negócio sem exceções
+- **Global Exception Handling**: Tratamento centralizado de exceções técnicas com Exception Filter
 - **Outbox Pattern**: Garantia de entrega de eventos (transactional messaging)
 - **Repository Pattern**: Abstração de acesso a dados
 - **Unit of Work**: Gerenciamento de transações com EF Core
@@ -300,14 +301,90 @@ Os 63 testes de integração cobrem:
 
 #### Vendas
 - `POST /api/v1/vendas` - Criar nova venda
+  - **Sucesso**: 201 Created com Location header
+  - **Erro**: 400 Bad Request (validação/regra de negócio)
 - `GET /api/v1/vendas` - Listar todas as vendas
+  - **Sucesso**: 200 OK com lista paginada
 - `GET /api/v1/vendas/{id}` - Buscar venda por ID
+  - **Sucesso**: 200 OK com dados da venda
+  - **Erro**: 404 Not Found (venda não existe)
 - `PUT /api/v1/vendas/{id}` - Atualizar venda existente
+  - **Sucesso**: 200 OK com venda atualizada
+  - **Erro**: 404 Not Found ou 400 Bad Request
 - `DELETE /api/v1/vendas/{id}` - Cancelar venda
+  - **Sucesso**: 204 No Content
+  - **Erro**: 404 Not Found
 
 #### Monitoramento
 - `GET /health` - Health check da aplicação
 - `GET /swagger` - Documentação OpenAPI
+
+#### Respostas de Erro
+
+Todos os endpoints retornam erros no formato **ProblemDetails** (RFC 7807) com:
+- `type`: URI do tipo de erro
+- `title`: Resumo do erro
+- `status`: Código HTTP
+- `detail`: Descrição específica
+- `traceId`: Identificador para rastreamento (sempre incluído)
+
+## 🛡️ Tratamento de Erros
+
+A API implementa um sistema robusto de tratamento de erros que combina duas abordagens:
+
+### Result Pattern (Erros de Negócio)
+Erros previsíveis de regras de negócio são tratados via **Result Pattern**, sem uso de exceções:
+- ✅ Validações de entrada
+- ✅ Regras de negócio violadas
+- ✅ Recursos não encontrados
+- ✅ Retorna status 400 (Bad Request) ou 404 (Not Found)
+
+### Global Exception Filter (Erros Técnicos)
+Exceções técnicas inesperadas são capturadas automaticamente por um **Exception Filter centralizado**:
+- ✅ Falhas de banco de dados (DbUpdateException) → 500
+- ✅ Timeouts de operação (TimeoutException) → 504
+- ✅ Erros de comunicação externa (HttpRequestException) → 502
+- ✅ Requisições canceladas (TaskCanceledException) → 499
+- ✅ Exceções genéricas → 500
+
+### Formato de Resposta (RFC 7807)
+
+Todas as respostas de erro seguem o padrão **ProblemDetails** (RFC 7807):
+
+```json
+{
+  "type": "https://tools.ietf.org/html/rfc7231#section-6.5.1",
+  "title": "Erro ao criar venda",
+  "status": 400,
+  "detail": "Não é permitido vender mais de 20 unidades do mesmo produto",
+  "traceId": "00-4bf92f3577b34da6a3ce929d0e0e4736-00"
+}
+```
+
+### Códigos de Status HTTP
+
+| Código | Descrição | Cenário |
+|--------|-----------|---------|
+| **400** | Bad Request | Validação ou regra de negócio violada |
+| **404** | Not Found | Recurso não encontrado |
+| **499** | Client Closed Request | Cliente cancelou a requisição |
+| **500** | Internal Server Error | Erro técnico inesperado |
+| **502** | Bad Gateway | Falha em serviço externo |
+| **504** | Gateway Timeout | Operação excedeu tempo limite |
+
+### Segurança
+
+- **Produção**: Stack traces e detalhes técnicos **NÃO** são expostos
+- **Desenvolvimento**: Stack traces incluídos para facilitar debugging
+- **Rastreabilidade**: TraceId incluído em todas as respostas para correlação de logs
+
+### Benefícios
+
+- ✅ **Código limpo**: Endpoints sem blocos try/catch duplicados
+- ✅ **Consistência**: Todas as respostas de erro seguem o mesmo formato
+- ✅ **Observabilidade**: Logs estruturados com TraceId para rastreamento
+- ✅ **Segurança**: Proteção contra vazamento de informações sensíveis
+- ✅ **Manutenibilidade**: Tratamento centralizado em um único ponto
 
 ## Logs
 
@@ -316,6 +393,16 @@ Os logs são gravados em:
 - **Arquivo**: `logs/123vendas-YYYY-MM-DD.log` (rotação diária, 30 dias de retenção)
 
 Formato estruturado com propriedades JSON para facilitar análise.
+
+### Logging de Exceções
+
+Todas as exceções técnicas são logadas automaticamente com:
+- ✅ Tipo da exceção
+- ✅ Mensagem de erro
+- ✅ Stack trace completo
+- ✅ TraceId para correlação
+- ✅ Path da requisição HTTP
+- ✅ Timestamp
 
 ## 🎯 Destaques do Projeto
 

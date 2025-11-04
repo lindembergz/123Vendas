@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using System.Net;
@@ -164,13 +165,15 @@ public class CriarVendaIntegrationTests : IClassFixture<CustomWebApplicationFact
         var response = await _client.PostAsJsonAsync("/api/v1/vendas", request);
 
         
-        // NOTA: Atualmente retorna 500 porque a exceção do domínio não é tratada adequadamente
-        // TODO: Configurar pipeline de validação no MediatR para aplicar CriarVendaValidator
-        response.StatusCode.Should().Be(HttpStatusCode.InternalServerError,
-            "validação FluentValidation não está configurada, então a exceção do domínio causa 500");
+        // Global Exception Filter trata ArgumentException como 400 Bad Request
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest,
+            "ArgumentException deve ser tratada como erro de validação (400)");
         
-        var content = await response.Content.ReadAsStringAsync();
-        content.Should().NotBeNullOrEmpty();
+        var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        problem.Should().NotBeNull();
+        problem!.Status.Should().Be((int)HttpStatusCode.BadRequest);
+        problem.Title.Should().Be("Erro de validação");
+        problem.Detail.Should().Contain("ClienteId");
     }
 
     [Fact]

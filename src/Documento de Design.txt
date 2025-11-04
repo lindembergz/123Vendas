@@ -1,0 +1,520 @@
+# Documento de Design Resumido e Expandido — Sistema 123Vendas
+
+
+## Visão Geral
+O sistema **123Vendas** é uma aplicação corporativa composta por três domínios principais: **CRM**, **Estoque** e **Vendas**. 
+Ele foi desenvolvido com base em princípios sólidos de **Clean Architecture**, **DDD (Domain-Driven Design)** e um **monólito modular** altamente coeso, visando escalabilidade, testabilidade e clareza arquitetural.
+
+### Objetivos de Design
+
+- **Simplicidade**: Monólito modular para facilitar desenvolvimento e deploy inicial
+- **Escalabilidade**: Estrutura preparada para migração futura para microsserviços
+- **Manutenibilidade**: Código limpo seguindo SOLID, DRY, YAGNI e Object Calisthenics
+- **Observabilidade**: Logging estruturado com Serilog para rastreabilidade completa
+- **Qualidade**: Cobertura de testes >85% com testes unitários e de integração
+
+
+### Princípios Arquiteturais
+
+1. **Clean Architecture**: Dependências apontam para o centro (Domain)
+2. **DDD (Domain-Driven Design)**: Agregados, Value Objects e regras centralizadas no domínio
+3. **CQRS**: Separação de comandos (write) e queries (read) via MediatR
+4. **Event-Driven**: Comunicação assíncrona entre módulos via eventos de domínio
+5. **API-First**: Contratos bem definidos com versionamento e documentação Swagger
+6. **Modular Monolith**: Cada módulo é um assembly separado com boundaries claros
+
+
+Resumindo:
+
+- Domain: zero dependência externa
+- Application: orquestra use-cases
+- Infrastructure: EF Core, Repositórios
+- Api: Minimal APIs + Swagger
+- Testes: 100% isolados do banco
+- Eventos: MediatR + Serilog
+
+
+### Estrutura de Assemblies (Projetos)
+
+Cada módulo é um **assembly .NET separado**, garantindo isolamento em tempo de compilação:
+
+```
+123Vendas.sln
+├── src/
+│   ├── 123Vendas.Api/                          → Assembly principal (API)
+│   ├── 123Vendas.Shared/                       → Assembly compartilhado
+│   └── Modules/
+│       ├── Venda/
+│       │   ├── Venda.Domain/                   → Assembly do domínio
+│       │   ├── Venda.Application/              → Assembly de aplicação
+│       │   └── Venda.Infrastructure/           → Assembly de infraestrutura
+│       ├── Estoque/
+│       │   └── Estoque.Application/            → Assembly simulado
+│       └── CRM/
+│           └── CRM.Application/                → Assembly simulado
+└── tests/
+    ├── Venda.Domain.Tests/
+    ├── Venda.Application.Tests/
+    └── Venda.Integration.Tests/
+```
+
+
+**Benefícios de assemblies separados**:
+-  Isolamento forte entre módulos
+-  Compilação independente
+-  Facilita migração futura para microsserviços
+-  Boundaries claros e explícitos
+-  Reutilização de módulos em outros projetos
+
+
+
+## Architecture
+
+### High-Level Architecture Diagram
+
+```mermaid
+graph TB
+    Client[Cliente HTTP/Swagger] --> API[API Layer - Minimal APIs]
+    API --> App[Application Layer - MediatR Handlers]
+    App --> Domain[Domain Layer - Aggregates & Rules]
+    App --> Infra[Infrastructure Layer - Repositories & EF Core]
+    Domain --> Infra
+    
+    subgraph "Módulo Vendas"
+        API
+        App
+        Domain
+        Infra
+    end
+    
+    subgraph "Módulos Simulados"
+        Estoque[Estoque Module - Event Handlers]
+        CRM[CRM Module - Event Handlers]
+    end
+    
+    App -->|Publica Eventos| EventBus[MediatR Event Bus]
+    EventBus -->|Consome Eventos| Estoque
+    EventBus -->|Consome Eventos| CRM
+    
+    Infra --> DB[(SQLite)]
+    
+    API --> Serilog[Serilog - Structured Logging]
+    App --> Serilog
+    Estoque --> Serilog
+    CRM --> Serilog
+```
+
+
+O projeto utiliza **SQLite** como banco de dados relacional, acessado via **Entity Framework Core**.
+
+Cada módulo (CRM, Estoque e Vendas) possui seu próprio `DbContext`, garantindo isolamento lógico dentro do monólito modular.
+
+As operações seguem o padrão **Repository**, com o **DbContext do EF Core atuando como Unit of Work implícito**, garantindo **transações ACID** para consistência de dados e integração com o **Outbox Pattern** para publicação confiável de eventos.
+
+**Características principais**:
+- **Migrações automáticas**: EF Core Migrations aplicadas no startup
+- **Índices estratégicos**: Otimização de queries em campos frequentemente consultados (ClienteId, Data, Status)
+- **Relacionamentos owned**: ItemVenda como entidade owned de VendaAgregado
+- **Portabilidade**: Banco de dados em arquivo único, fácil de distribuir e testar
+- **Zero configuração**: Não requer instalação de servidor de banco de dados
+- **Tabelas auxiliares**: OutboxEvents para eventos, IdempotencyKeys para idempotência
+
+
+### Camadas e Responsabilidades
+
+#### 1. API Layer (123Vendas.Api)
+- **Responsabilidade**: Expor endpoints RESTful versionados
+- **Tecnologias**: ASP.NET Core Minimal APIs, Swagger/OpenAPI
+- **Abordagem**: **Minimal APIs** (sem controllers tradicionais)
+
+**Por que Minimal APIs ao invés de Controllers?**
+- Menos boilerplate code
+- Performance superior (menos overhead)
+- Alinhado com .NET 8 best practices
+- Ideal para APIs simples e focadas
+- Endpoints definidos diretamente no Program.cs ou em extension methods
+
+**Componentes**:
+  - `Program.cs`: Configuração de DI, middleware, Serilog e mapeamento de endpoints
+  - `Endpoints/VendasEndpoints.cs`: Extension methods para mapear rotas /api/v1/vendas (substitui controllers)
+  - `Middleware/CorrelationIdMiddleware.cs`: Gerenciamento de correlation ID
+  - `Middleware/RequestTimeoutMiddleware.cs`: Timeout global de requisições
+  - `Middleware/ExceptionHandlingMiddleware.cs`: Tratamento centralizado de exceções
+
+**Nota importante**: Este projeto **NÃO usa Controllers tradicionais**. Todos os endpoints são definidos usando **Minimal APIs** através de extension methods em `VendasEndpoints.cs`.
+
+#### 2. Application Layer (Modules/Venda/Application)
+- **Responsabilidade**: Orquestrar casos de uso e coordenar fluxo de dados
+- **Tecnologias**: MediatR, FluentValidation
+- **Componentes**:
+  - `Commands/`: CriarVendaCommand, AtualizarVendaCommand, CancelarVendaCommand
+  - `Queries/`: ObterVendaPorIdQuery, ListarVendasQuery
+  - `Handlers/`: Implementações de IRequestHandler para cada comando/query
+  - `Validators/`: Validadores FluentValidation para cada comando
+  - `DTOs/`: VendaDto, ItemVendaDto para transferência de dados
+
+#### 3. Domain Layer (Modules/Venda/Domain)
+- **Responsabilidade**: Encapsular regras de negócio e lógica do domínio
+- **Tecnologias**: C# puro, sem dependências externas
+- **Componentes**:
+  - `Aggregates/VendaAgregado.cs`: Raiz agregada com métodos de negócio
+  - `ValueObjects/ItemVenda.cs`: Value object imutável (record)
+  - `Exceptions/DomainException.cs`: Exceção customizada para violações de regras
+  - `Interfaces/IVendaRepository.cs`: Contrato de persistência
+
+
+#### 4. Infrastructure Layer (Modules/Venda/Infrastructure)
+- **Responsabilidade**: Implementar detalhes técnicos de persistência e infraestrutura
+- **Tecnologias**: Entity Framework Core, SQL Server
+- **Componentes**:
+  - `Data/VendaDbContext.cs`: Contexto EF Core com configurações de entidades
+  - `Repositories/VendaRepository.cs`: Implementação de IVendaRepository
+  - `Configurations/VendaConfiguration.cs`: Mapeamento Fluent API
+  - `Migrations/`: Migrações automáticas do EF Core
+
+#### 5. Shared Layer
+- **Responsabilidade**: Componentes compartilhados entre módulos
+- **Componentes**:
+  - `Events/`: CompraCriada, CompraAlterada, CompraCancelada, ItemCancelado
+  - `Interfaces/`: Contratos compartilhados
+  - `Extensions/`: Métodos de extensão utilitários
+  - `Common/Result.cs`: Result Pattern para retornos tipados e seguros
+
+
+**Nota sobre módulos simulados**: Os módulos Estoque e CRM são stubs de integração para demonstração do conceito de eventos. Em produção, seriam substituídos por chamadas reais a serviços externos ou microsserviços dedicados.
+
+
+###  Classe VendaAgregado:
+
+**Responsabilidades e Padrões Aplicados**:
+-  **Result Pattern**: Métodos retornam `Result` ao invés de lançar exceções de negócio
+-  **Strategy Pattern**: Usa `IPoliticaDesconto` injetado para cálculo de descontos (SRP + OCP)
+-  **1 linha por produto**: Quantidade somada, não duplica linhas
+-  **Desconto centralizado**: Delegado para `PoliticaDesconto` (testável isoladamente)
+-  **Invariantes**: Não permite adicionar/remover itens se venda cancelada
+-  **Guid Id + int NumeroVenda**: PK técnica + número de negócio legível
+-  **Enum Status**: Type-safe ao invés de string
+-  **Domain Events**: Rastreamento de mudanças para comunicação entre módulos
+-  **Remoção parcial**: Sobrecarga de `RemoverItem` permite remover quantidade específica
+
+#### ItemVenda (Value Object)
+
+```csharp
+public record ItemVenda(
+    Guid ProdutoId,
+    int Quantidade,
+    decimal ValorUnitario,
+    decimal Desconto = 0m)
+{
+    public decimal Total => Quantidade * ValorUnitario * (1 - Desconto);
+}
+```
+
+**Características**:
+- Imutável (record type)
+- Sem identidade própria (parte do agregado)
+- Lógica de cálculo encapsulada
+
+
+#### IPoliticaDesconto (Strategy Pattern)
+
+Interface que encapsula as regras de desconto, permitindo testabilidade e extensibilidade.
+
+**Benefícios do Strategy Pattern**:
+-  **Single Responsibility**: Regras de desconto isoladas em uma classe
+-  **Open/Closed**: Fácil adicionar novas políticas sem modificar o agregado
+-  **Testabilidade**: Pode ser testado isoladamente e mockado em testes
+-  **Injeção de Dependência**: Agregado recebe a política via construtor
+
+### Application Components
+
+#### Command Pattern
+
+public record CriarVendaCommand(...
+
+public class CriarVendaHandler : IRequestHandler<CriarVendaCommand, Guid>
+
+#### Query Pattern
+
+public record ObterVendaPorIdQuery(Guid VendaId) : IRequest<VendaDto?>;
+public class ObterVendaPorIdHandler : IRequestHandler<ObterVendaPorIdQuery, VendaDto?>
+
+### Infrastructure Components
+
+#### Repository Interface
+
+public interface IVendaRepository
+{
+    Task<VendaAgregado?> ObterPorIdAsync(Guid id, CancellationToken ct);
+    Task<List<VendaAgregado>> ListarAsync(VendaFiltro? filtro, CancellationToken ct);
+    Task AdicionarAsync(VendaAgregado venda, CancellationToken ct);
+    Task AtualizarAsync(VendaAgregado venda, CancellationToken ct);
+    Task<bool> ExisteAsync(Guid id, CancellationToken ct);
+}
+
+
+#### EF Core Configuration
+
+
+public class VendaConfiguration : IEntityTypeConfiguration<VendaAgregado>
+...
+
+
+### Event System
+
+#### Domain Events
+
+// Evento base
+public record DomainEvent(Guid EventId, DateTime OccurredAt);
+
+// Eventos específicos
+public record CompraCriada(Guid VendaId, Guid ClienteId) 
+    : DomainEvent(Guid.NewGuid(), DateTime.UtcNow), INotification;
+
+public record CompraAlterada(Guid VendaId, List<Guid> ItensModificados) 
+    : DomainEvent(Guid.NewGuid(), DateTime.UtcNow), INotification;
+
+public record CompraCancelada(Guid VendaId, string Motivo) 
+    : DomainEvent(Guid.NewGuid(), DateTime.UtcNow), INotification;
+
+public record ItemCancelado(Guid VendaId, Guid ProdutoId) 
+    : DomainEvent(Guid.NewGuid(), DateTime.UtcNow), INotification;
+
+
+#### Event Handlers (Módulos Simulados)
+
+// Estoque Module
+public class EstoqueEventHandler : 
+    INotificationHandler<CompraCriada>,
+    INotificationHandler<CompraCancelada>
+
+
+// CRM Module
+public class CrmEventHandler : INotificationHandler<CompraCriada>
+
+
+### Entity Mapping Strategy
+
+**Vendas (Aggregate Root)**:
+- Tabela principal com propriedades escalares
+- Relacionamento 1:N com ItensVenda via owned entity
+- Índices em ClienteId, Data e Status para queries otimizadas
+
+**ItensVenda (Owned Entity)**:
+- Tabela separada para normalização
+- Sem repositório próprio (acessado via agregado)
+- Cascade delete automático quando venda é removida
+
+
+### Data Transfer Objects (DTOs)
+
+public record VendaDto
+public record ItemVendaDto
+public record CriarVendaRequest
+public record AtualizarVendaRequest
+...
+
+
+## Error Handling
+
+### Result Pattern (Domain Layer)
+
+O projeto utiliza o **Result Pattern** na camada de domínio para tratamento de erros de negócio sem exceções, tornando o fluxo mais explícito e previsível.
+
+
+**Uso no Domain**:
+
+// Métodos do agregado retornam Result ao invés de lançar exceções
+public Result AdicionarItem(ItemVenda item)
+{
+    if (Status == StatusVenda.Cancelada)
+        return Result.Failure("Não é possível adicionar itens a uma venda cancelada.");
+    
+    // ... 
+    
+    return Result.Success();
+}
+
+
+
+**Benefícios**:
+-  Erros de negócio explícitos no tipo de retorno
+-  Não usa exceções para fluxo de controle (melhor performance)
+-  Força tratamento de erros (compile-time safety)
+-  Código mais testável e previsível
+
+
+### Exceptions
+
+
+#### Exception Hierarchy
+
+// Base exception
+public abstract class AppException : Exception
+
+// Domain exceptions
+public class DomainException : AppException
+
+// Not found exception
+public class NotFoundException : AppException
+
+// Validation exception
+public class ValidationException : AppException
+
+
+#### Global Exception Middleware
+
+
+public class ExceptionHandlingMiddleware
+
+public record ErrorResponse
+
+
+#### Global Exception Handling
+
+O projeto implementa um sistema robusto e centralizado de tratamento de exceções que combina **Result Pattern** (para erros de negócio) com **Exception Filter** (para erros técnicos).
+
+
+##### GlobalExceptionFilter
+
+Componente central que intercepta e trata exceções técnicas não tratadas no pipeline HTTP:
+
+public class GlobalExceptionFilter : IExceptionFilter
+
+##### Códigos de Status HTTP
+
+O sistema retorna os seguintes códigos de status HTTP padronizados:
+
+| Código | Cenário | Tipo de Erro | Exemplo |
+|--------|---------|--------------|---------|
+| **400** | Bad Request | Erro de negócio (Result.Failure) | "Não é permitido vender mais de 20 unidades" |
+| **404** | Not Found | Recurso não encontrado | "Venda com ID X não encontrada" |
+| **499** | Client Closed Request | Cliente cancelou requisição | TaskCanceledException |
+| **500** | Internal Server Error | Erro técnico genérico | Exception não mapeada |
+| **500** | Database Error | Falha de persistência | DbUpdateException |
+| **502** | Bad Gateway | Erro em serviço externo | HttpRequestException |
+| **504** | Gateway Timeout | Timeout de operação | TimeoutException |
+
+#### Estratégia de Tratamento de Erros
+
+```
+Tipos de Erro                         
+                                                         
+  1. Erros de Negócio (Previsíveis)                     
+     └─> Result Pattern                                  
+         • Validações (400)                              
+         • Regras de negócio (400)                       
+         • Recurso não encontrado (404)                  
+                                                          
+  2. Erros Técnicos (Inesperados)                       
+     └─> Exception Filter                                
+         • Falha de banco (500)                          
+         • Timeout de rede (504)                         
+         • Serviço indisponível (502)                    
+         • Operação cancelada (499)                      
+
+#### Formato ProblemDetails (RFC 7807)
+
+Todas as respostas de erro seguem o formato padronizado RFC 7807:
+
+**Erro de Negócio (400)**:
+```json
+{
+  "type": "https://tools.ietf.org/html/rfc7231#section-6.5.1",
+  "title": "Erro ao criar venda",
+  "status": 400,
+  "detail": "Não é permitido vender mais de 20 unidades do mesmo produto",
+  "traceId": "00-4bf92f3577b34da6a3ce929d0e0e4736-00"
+}
+```
+
+**Erro Técnico em Produção (500)**:
+```json
+{
+  "type": "https://tools.ietf.org/html/rfc7231#section-6.6.1",
+  "title": "Erro de persistência",
+  "status": 500,
+  "detail": "Ocorreu um erro ao salvar dados no banco de dados",
+  "traceId": "00-4bf92f3577b34da6a3ce929d0e0e4736-00"
+}
+```
+
+**Erro Técnico em Desenvolvimento (500)** - com detalhes:
+```json
+{
+  "type": "https://tools.ietf.org/html/rfc7231#section-6.6.1",
+  "title": "Erro de persistência",
+  "status": 500,
+  "detail": "An error occurred while saving the entity changes. See the inner exception for details.",
+  "traceId": "00-4bf92f3577b34da6a3ce929d0e0e4736-00",
+  "stackTrace": "at Microsoft.EntityFrameworkCore.DbContext.SaveChangesAsync..."
+}
+
+
+##### Segurança e Exposição de Informações
+
+O sistema implementa proteções para evitar vazamento de informações sensíveis:
+
+ **Produção**:
+- Stack traces **NÃO** são incluídos
+- Mensagens genéricas para exceções inesperadas
+- Apenas TraceId para correlação de logs
+
+ **Desenvolvimento**:
+- Stack traces completos incluídos
+- Mensagens de exceção originais
+- Detalhes técnicos para debugging
+
+ **Rastreabilidade**:
+- TraceId incluído em **todas** as respostas de erro
+- Logs estruturados com TraceId, tipo de exceção, path e timestamp
+- Correlação entre logs e respostas HTTP
+
+##### Validation Strategy
+
+**FluentValidation** para validação de comandos:
+
+```csharp
+public class CriarVendaValidator : AbstractValidator<CriarVendaCommand>
+{
+    public CriarVendaValidator()
+    {
+        RuleFor(x => x.ClienteId)
+            .NotEmpty().WithMessage("ClienteId é obrigatório");
+        
+        RuleFor(x => x.Filial)
+            .NotEmpty().WithMessage("Filial é obrigatória")
+            .MaximumLength(100).WithMessage("Filial deve ter no máximo 100 caracteres");
+        
+        RuleFor(x => x.Itens)
+            .NotEmpty().WithMessage("Venda deve conter ao menos um item")
+            .Must(itens => itens.Count <= 100).WithMessage("Venda não pode ter mais de 100 itens");
+        
+        RuleForEach(x => x.Itens).ChildRules(item =>
+        {
+            item.RuleFor(i => i.ProdutoId).NotEmpty();
+            item.RuleFor(i => i.Quantidade).GreaterThan(0);
+            item.RuleFor(i => i.ValorUnitario).GreaterThan(0);
+        });
+    }
+}
+
+**Benefícios**:
+- Menos código
+- Foco na lógica de negócio
+- Sem duplicação de tratamento de erro
+- Exception Filter cuida de exceções técnicas automaticamente
+
+
+
+## Conclusão
+
+O **123Vendas** demonstra um ótimo nível de engenharia de software, unindo práticas modernas de arquitetura limpa, resiliência, idempotência, DDD, CQRS e observabilidade.  
+Sua estrutura modular garante facilidade de manutenção, testes eficientes e evolução contínua.
+
+O sistema está bem aderente e com diferenciais de maturidade como:
+
+- Result Pattern centralizado;
+- Outbox e Idempotência integrados;
+- Resiliência completa com Polly e fallback;
+- Testes e observabilidade de alto nível.

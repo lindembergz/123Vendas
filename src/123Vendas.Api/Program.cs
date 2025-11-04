@@ -1,6 +1,7 @@
 using _123Vendas.Api.Configuration;
 using _123Vendas.Api.Endpoints;
 using _123Vendas.Api.Extensions;
+using _123Vendas.Api.Middleware;
 using _123Vendas.Shared.Interfaces;
 using CRM.Application.Services;
 using Estoque.Application.Services;
@@ -23,22 +24,22 @@ try
     //3. Registrar serviços de aplicação (MediatR, Repositories, etc.)
     builder.Services.AddApplicationServices();
 
-    //4. Configurar Database
+    //5. Configurar Database
     var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
         ?? "Data Source=vendas.db";
     builder.Services.AddDatabaseConfiguration(connectionString);
 
-    //5. Registrar serviços de domínio
+    //6. Registrar serviços de domínio
     builder.Services.AddScoped<Venda.Domain.Interfaces.IPoliticaDesconto, Venda.Domain.Services.PoliticaDesconto>();
 
-    //6. Configurar Health Checks
+    //7. Configurar Health Checks
     builder.Services.AddAppHealthChecks(connectionString);
 
-    //7. Configurar Options Pattern para serviços externos
+    //8. Configurar Options Pattern para serviços externos
     builder.Services.Configure<ServiceSettings>("CRM", builder.Configuration.GetSection("Services:CRM"));
     builder.Services.Configure<ServiceSettings>("Estoque", builder.Configuration.GetSection("Services:Estoque"));
 
-    //8. Configurar serviços externos (CRM e Estoque)
+    //9. Configurar serviços externos (CRM e Estoque)
     // MODO: MOCK para desenvolvimento (sempre retorna sucesso)
 
     //===== MOCK SERVICES (DESENVOLVIMENTO) =====
@@ -49,6 +50,11 @@ try
     var app = builder.Build();
 
     //Configure the HTTP request pipeline.
+    
+    // Middleware de tratamento global de exceções (deve ser o primeiro)
+    app.UseMiddleware<GlobalExceptionMiddleware>();
+    Log.Information("Global Exception Middleware configurado");
+    
     if (app.Environment.IsDevelopment())
     {
         app.UseSwagger();

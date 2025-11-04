@@ -34,14 +34,14 @@ public class CenariosErroIntegrationTests : IClassFixture<CustomWebApplicationFa
         var response = await _client.PostAsJsonAsync("/api/v1/vendas", requestInvalido);
 
         
-        // NOTA: Atualmente retorna 500 porque a validação de modelo não está configurada
-        // O ideal seria retornar 400, mas sem FluentValidation no pipeline, a exceção causa 500
-        response.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
+        // Global Exception Filter trata ArgumentException como 400 Bad Request
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest,
+            "ArgumentException deve ser tratada como erro de validação (400)");
         
         var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
         problem.Should().NotBeNull();
-        problem!.Title.Should().NotBeNullOrEmpty();
-        problem.Status.Should().Be((int)HttpStatusCode.InternalServerError);
+        problem!.Title.Should().Be("Erro de validação");
+        problem.Status.Should().Be((int)HttpStatusCode.BadRequest);
     }
 
     [Fact]
@@ -58,21 +58,15 @@ public class CenariosErroIntegrationTests : IClassFixture<CustomWebApplicationFa
         var response = await _client.PostAsJsonAsync("/api/v1/vendas", request);
 
         
-        response.StatusCode.Should().BeOneOf(
-            HttpStatusCode.BadRequest, 
-            HttpStatusCode.InternalServerError);
+        // Global Exception Filter trata ArgumentException como 400 Bad Request
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest,
+            "ArgumentException deve ser tratada como erro de validação (400)");
         
-        var content = await response.Content.ReadAsStringAsync();
-        content.Should().NotBeNullOrEmpty();
-        
-        // Se retornar ProblemDetails, validar estrutura
-        if (response.StatusCode == HttpStatusCode.BadRequest)
-        {
-            var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
-            problem.Should().NotBeNull();
-            problem!.Title.Should().NotBeNullOrEmpty();
-            problem.Detail.Should().NotBeNullOrEmpty();
-        }
+        var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        problem.Should().NotBeNull();
+        problem!.Title.Should().Be("Erro de validação");
+        problem.Detail.Should().Contain("ClienteId");
+        problem.Status.Should().Be((int)HttpStatusCode.BadRequest);
     }
 
     [Fact]
