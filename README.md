@@ -34,26 +34,8 @@ Sistema de vendas com CRUD completo, regras de negócio centralizadas e eventos 
 ## 🏗️ Estrutura do Projeto
 
 
-123Vendas.sln
-├── src/
-│   ├── 123Vendas.Api/                          → API Layer (Minimal APIs)
-│   ├── 123Vendas.Shared/                       → Shared components
-│   ├── 123Vendas.Demo/                         → Console para demonstracao
-│   └── Modules/
-│       ├── Venda/
-│       │   ├── Venda.Domain/                   → Domain Layer
-│       │   ├── Venda.Application/              → Application Layer (CQRS)
-│       │   └── Venda.Infrastructure/           → Infrastructure Layer (EF Core)
-│       ├── Estoque/
-│       │   └── Estoque.Application/            → Simulated module
-│       └── CRM/
-│           └── CRM.Application/                → Simulated module
-└── tests/
-    ├── Shared.Tests/                           → Shared components tests
-    ├── Venda.Domain.Tests/                     → Domain unit tests (47 tests)
-    ├── Venda.Application.Tests/                → Application tests (49 tests)
-    ├── Venda.Infrastructure.Tests/             → Infrastructure tests (27 tests)
-    └── Venda.Integration.Tests/                → Integration tests (63 tests)
+<img width="313" height="758" alt="image" src="https://github.com/user-attachments/assets/2c3ea2b2-533a-4adb-8589-e706411ec30a" />
+
 
 
 ## 🏛️ Decisões Arquiteturais
