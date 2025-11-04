@@ -99,10 +99,15 @@ Separação clara entre comandos (escrita) e queries (leitura):
 5. **Executar Testes**
 
     dotnet test
+   
     dotnet test tests/Venda.Domain.Tests
+   
     dotnet test tests/Venda.Application.Tests
+   
     dotnet test tests/Venda.Infrastructure.Tests
+   
     dotnet test tests/Venda.Integration.Tests
+   
     dotnet test tests/Shared.Tests
 
 5. **Executar Demo (Opcional)**
