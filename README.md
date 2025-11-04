@@ -81,7 +81,6 @@ Separação clara entre comandos (escrita) e queries (leitura):
 1. **Clone o repositório**   
    
    git clone https://github.com/lindembergz/123Vendas
-   cd 123Vendas/API   
 
 2. **Restaurar dependências**
 
