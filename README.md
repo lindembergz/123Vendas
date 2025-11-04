@@ -127,6 +127,9 @@ Separação clara entre comandos (escrita) e queries (leitura):
 
    Console interativo demonstrando funcionalidades da API
 
+   <img width="779" height="574" alt="image" src="https://github.com/user-attachments/assets/bc5dfec9-c58b-4168-b9db-6a2d1d103703" />
+
+
 ### Banco de Dados
 
 O projeto usa **SQLite** (arquivo `vendas.db`) com configuração zero:
@@ -178,12 +181,6 @@ Vantagens do SQLite in-memory (usado atualmente):
 - Isolamento perfeito entre testes
 - Funciona em qualquer ambiente (CI/CD, Windows, Linux, Mac)
 
-Quando Testcontainers seria útil:
-
-- Se estivesse usando PostgreSQL, SQL Server ou outro banco em produção;
-- Para testar features específicas do banco de dados de produção;
-- Para testes com Redis, RabbitMQ, ou outros serviços externos.
-
 ### Padrões Arquiteturais
 - **Clean Architecture**: Separação clara de responsabilidades em camadas
 - **Modular Monolith**: Módulos independentes (Venda, CRM, Estoque) preparados para microserviços
@@ -205,6 +202,9 @@ dotnet test /p:CollectCoverage=true
 - 63 testes de integração (API endpoints)
 - 18 testes compartilhados (Shared)
 - 27 testes de infraestrutura (Infrastructure)
+
+<img width="696" height="322" alt="image" src="https://github.com/user-attachments/assets/2bef8e5b-78bb-4b04-947c-c3b1b02985f6" />
+
 
 ### Distribuição dos Testes
 
