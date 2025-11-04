@@ -293,10 +293,8 @@ Os 63 testes de integração cobrem:
 
 ## 📚 Documentação Adicional
 
-### Especificações do Projeto
-- [Design Document](.kiro/specs/api-vendas-123vendas/design.md) - Decisões arquiteturais detalhadas
-- [Requirements Document](.kiro/specs/api-vendas-123vendas/requirements.md) - Requisitos funcionais e não-funcionais
-- [Implementation Tasks](.kiro/specs/api-vendas-123vendas/tasks.md) - Tarefas implementadas e checklist
+- Documento de Design.txt - Decisões arquiteturais detalhadas
+
 
 ### Endpoints da API
 
