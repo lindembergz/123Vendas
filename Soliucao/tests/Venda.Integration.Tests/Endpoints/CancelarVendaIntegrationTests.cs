@@ -31,27 +31,27 @@ public class CancelarVendaIntegrationTests : IClassFixture<CustomWebApplicationF
     [Fact]
     public async Task Delete_VendaAtiva_DeveRetornar204()
     {
-        // Arrange
+        
         var vendaId = await CriarVendaHelper();
 
-        // Act
+        
         var response = await _client.DeleteAsync($"/api/v1/vendas/{vendaId}");
 
-        // Assert
+        
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
     }
 
     [Fact]
     public async Task Delete_VendaJaCancelada_DeveRetornar400()
     {
-        // Arrange
+        
         var vendaId = await CriarVendaHelper();
         await _client.DeleteAsync($"/api/v1/vendas/{vendaId}"); // Primeira vez - cancela
 
-        // Act
+        
         var response = await _client.DeleteAsync($"/api/v1/vendas/{vendaId}"); // Segunda vez - deve falhar
 
-        // Assert
+        
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         
         var content = await response.Content.ReadAsStringAsync();
@@ -62,13 +62,13 @@ public class CancelarVendaIntegrationTests : IClassFixture<CustomWebApplicationF
     [Fact]
     public async Task Delete_VendaInexistente_DeveRetornar404()
     {
-        // Arrange
+        
         var idInexistente = Guid.NewGuid();
 
-        // Act
+        
         var response = await _client.DeleteAsync($"/api/v1/vendas/{idInexistente}");
 
-        // Assert
+        
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
         
         var content = await response.Content.ReadAsStringAsync();
@@ -79,13 +79,13 @@ public class CancelarVendaIntegrationTests : IClassFixture<CustomWebApplicationF
     [Fact]
     public async Task Delete_VendaCancelada_DeveAlterarStatusNoBanco()
     {
-        // Arrange
+        
         var vendaId = await CriarVendaHelper();
 
-        // Act
+        
         var response = await _client.DeleteAsync($"/api/v1/vendas/{vendaId}");
 
-        // Assert
+        
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         // Verificar status no banco
@@ -102,13 +102,13 @@ public class CancelarVendaIntegrationTests : IClassFixture<CustomWebApplicationF
     [Fact]
     public async Task Delete_VendaCancelada_DeveGerarEventoCompraCancelada()
     {
-        // Arrange
+        
         var vendaId = await CriarVendaHelper();
 
-        // Act
+        
         var response = await _client.DeleteAsync($"/api/v1/vendas/{vendaId}");
 
-        // Assert
+        
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         // Verificar evento no banco usando helper
@@ -129,17 +129,17 @@ public class CancelarVendaIntegrationTests : IClassFixture<CustomWebApplicationF
     [Fact]
     public async Task Delete_VendaCancelada_DeveManterDadosHistoricos()
     {
-        // Arrange
+        
         var vendaId = await CriarVendaHelper();
         
         // Buscar dados originais antes do cancelamento
         var vendaOriginal = await _client.GetFromJsonAsync<VendaDto>($"/api/v1/vendas/{vendaId}");
         vendaOriginal.Should().NotBeNull();
 
-        // Act
+        
         var response = await _client.DeleteAsync($"/api/v1/vendas/{vendaId}");
 
-        // Assert
+        
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         // Verificar que a venda ainda pode ser consultada (soft delete)

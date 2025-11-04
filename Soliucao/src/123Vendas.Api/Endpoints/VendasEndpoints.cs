@@ -15,7 +15,7 @@ public static class VendasEndpoints
             .WithTags("Vendas")
             .WithOpenApi();
 
-        // POST /api/v1/vendas - Criar venda
+        //POST /api/v1/vendas - Criar venda
         group.MapPost("/", CriarVenda)
             .WithName("CriarVenda")
             .WithSummary("Cria uma nova venda")
@@ -23,20 +23,20 @@ public static class VendasEndpoints
             .Produces<ProblemDetails>(StatusCodes.Status400BadRequest)
             .Produces<ProblemDetails>(StatusCodes.Status500InternalServerError);
 
-        // GET /api/v1/vendas/{id} - Obter venda por ID
+        //GET /api/v1/vendas/{id} - Obter venda por ID
         group.MapGet("/{id:guid}", ObterVendaPorId)
             .WithName("ObterVendaPorId")
             .WithSummary("Obtém uma venda por ID")
             .Produces<VendaDto>(StatusCodes.Status200OK)
             .Produces<ProblemDetails>(StatusCodes.Status404NotFound);
 
-        // GET /api/v1/vendas - Listar vendas
+        //GET /api/v1/vendas - Listar vendas
         group.MapGet("/", ListarVendas)
             .WithName("ListarVendas")
             .WithSummary("Lista vendas com filtros e paginação")
             .Produces<PagedResult<VendaDto>>(StatusCodes.Status200OK);
 
-        // PUT /api/v1/vendas/{id} - Atualizar venda
+        //PUT /api/v1/vendas/{id} - Atualizar venda
         group.MapPut("/{id:guid}", AtualizarVenda)
             .WithName("AtualizarVenda")
             .WithSummary("Atualiza uma venda existente")
@@ -44,20 +44,14 @@ public static class VendasEndpoints
             .Produces<ProblemDetails>(StatusCodes.Status404NotFound)
             .Produces<ProblemDetails>(StatusCodes.Status400BadRequest);
 
-        // DELETE /api/v1/vendas/{id} - Cancelar venda
+        //DELETE /api/v1/vendas/{id} - Cancelar venda
         group.MapDelete("/{id:guid}", CancelarVenda)
             .WithName("CancelarVenda")
             .WithSummary("Cancela uma venda (soft delete)")
             .Produces(StatusCodes.Status204NoContent)
             .Produces<ProblemDetails>(StatusCodes.Status404NotFound);
 
-        // POST /api/v1/vendas/{id}/confirmar - Confirmar venda pendente
-        group.MapPost("/{id:guid}/confirmar", ConfirmarVenda)
-            .WithName("ConfirmarVenda")
-            .WithSummary("Confirma uma venda com status PendenteValidacao")
-            .Produces<VendaDto>(StatusCodes.Status200OK)
-            .Produces<ProblemDetails>(StatusCodes.Status404NotFound)
-            .Produces<ProblemDetails>(StatusCodes.Status400BadRequest);
+
 
         return app;
     }
@@ -150,9 +144,9 @@ public static class VendasEndpoints
     {
         try
         {
-            // Valores padrão
+            //Valores padrão
             pageNumber = pageNumber <= 0 ? 1 : pageNumber;
-            pageSize = pageSize <= 0 ? 10 : Math.Min(pageSize, 100); // Máximo 100 itens por página
+            pageSize = pageSize <= 0 ? 10 : Math.Min(pageSize, 100); 
 
             var query = new ListarVendasQuery(
                 PageNumber: pageNumber,
@@ -281,73 +275,7 @@ public static class VendasEndpoints
         }
     }
 
-    private static async Task<IResult> ConfirmarVenda(
-        [FromRoute] Guid id,
-        [FromServices] IMediator mediator,
-        [FromServices] ILogger<Program> logger,
-        CancellationToken ct)
-    {
-        try
-        {
-            // Buscar a venda
-            var query = new ObterVendaPorIdQuery(id);
-            var venda = await mediator.Send(query, ct);
 
-            if (venda == null)
-            {
-                logger.LogWarning("Venda {VendaId} não encontrada para confirmação", id);
-                return Results.NotFound(new ProblemDetails
-                {
-                    Title = "Venda não encontrada",
-                    Detail = $"Venda com ID {id} não foi encontrada",
-                    Status = StatusCodes.Status404NotFound
-                });
-            }
-
-            if (venda.Status != "PendenteValidacao")
-            {
-                logger.LogWarning("Venda {VendaId} não está pendente de validação. Status atual: {Status}", id, venda.Status);
-                return Results.BadRequest(new ProblemDetails
-                {
-                    Title = "Status inválido",
-                    Detail = $"Apenas vendas com status 'PendenteValidacao' podem ser confirmadas. Status atual: {venda.Status}",
-                    Status = StatusCodes.Status400BadRequest
-                });
-            }
-
-            // Criar comando de confirmação (reutilizando a estrutura de atualização)
-            var command = new ConfirmarVendaCommand(
-                RequestId: Guid.NewGuid(),
-                VendaId: id);
-
-            var result = await mediator.Send(command, ct);
-
-            if (result.IsFailure)
-            {
-                logger.LogWarning("Falha ao confirmar venda {VendaId}: {Error}", id, result.Error);
-                return Results.BadRequest(new ProblemDetails
-                {
-                    Title = "Erro ao confirmar venda",
-                    Detail = result.Error,
-                    Status = StatusCodes.Status400BadRequest
-                });
-            }
-
-            logger.LogInformation("Venda {VendaId} confirmada com sucesso", id);
-            
-            // Buscar venda atualizada
-            var vendaAtualizada = await mediator.Send(query, ct);
-            return Results.Ok(vendaAtualizada);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Erro não tratado ao confirmar venda {VendaId}", id);
-            return Results.Problem(
-                title: "Erro interno",
-                detail: "Ocorreu um erro ao processar a requisição",
-                statusCode: StatusCodes.Status500InternalServerError);
-        }
-    }
 }
 
 // Request DTOs

@@ -42,7 +42,7 @@ public class CancelarVendaHandlerTests
     [Fact]
     public async Task Handle_ComVendaValida_DeveCancelarComSucesso()
     {
-        // Arrange
+        
         var requestId = Guid.NewGuid();
         var vendaId = Guid.NewGuid();
         var clienteId = Guid.NewGuid();
@@ -75,10 +75,10 @@ public class CancelarVendaHandlerTests
         _idempotencyStore.SaveAsync(requestId, nameof(CancelarVendaCommand), vendaId, Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
-        // Act
+        
         var result = await _handler.Handle(command, CancellationToken.None);
 
-        // Assert
+        
         result.IsSuccess.Should().BeTrue();
 
         await _vendaRepository.Received(1).AtualizarAsync(
@@ -102,7 +102,7 @@ public class CancelarVendaHandlerTests
     [Fact]
     public async Task Handle_ComVendaNaoEncontrada_DeveRetornarFailure()
     {
-        // Arrange
+        
         var requestId = Guid.NewGuid();
         var vendaId = Guid.NewGuid();
 
@@ -117,10 +117,10 @@ public class CancelarVendaHandlerTests
         _vendaRepository.ObterPorIdAsync(vendaId, Arg.Any<CancellationToken>())
             .Returns((VendaAgregado?)null);
 
-        // Act
+        
         var result = await _handler.Handle(command, CancellationToken.None);
 
-        // Assert
+        
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("não encontrada");
         result.Error.Should().Contain(vendaId.ToString());
@@ -143,7 +143,7 @@ public class CancelarVendaHandlerTests
     [Fact]
     public async Task Handle_ComRequestIdExistente_DeveRetornarSucessoSemCancelar()
     {
-        // Arrange
+        
         var requestId = Guid.NewGuid();
         var vendaId = Guid.NewGuid();
 
@@ -155,10 +155,10 @@ public class CancelarVendaHandlerTests
         _idempotencyStore.ExistsAsync(requestId, Arg.Any<CancellationToken>())
             .Returns(true);
 
-        // Act
+        
         var result = await _handler.Handle(command, CancellationToken.None);
 
-        // Assert
+        
         result.IsSuccess.Should().BeTrue();
 
         await _vendaRepository.DidNotReceive().ObterPorIdAsync(
@@ -177,7 +177,7 @@ public class CancelarVendaHandlerTests
     [Fact]
     public async Task Handle_ComVendaJaCancelada_DeveRetornarFailure()
     {
-        // Arrange
+        
         var requestId = Guid.NewGuid();
         var vendaId = Guid.NewGuid();
         var clienteId = Guid.NewGuid();
@@ -205,10 +205,10 @@ public class CancelarVendaHandlerTests
         _vendaRepository.ObterPorIdAsync(vendaId, Arg.Any<CancellationToken>())
             .Returns(vendaExistente);
 
-        // Act
+        
         var result = await _handler.Handle(command, CancellationToken.None);
 
-        // Assert
+        
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("já está cancelada");
 
@@ -226,7 +226,7 @@ public class CancelarVendaHandlerTests
     [Fact]
     public async Task Handle_ComSucesso_DevePublicarEventoCompraCancelada()
     {
-        // Arrange
+        
         var requestId = Guid.NewGuid();
         var vendaId = Guid.NewGuid();
         var clienteId = Guid.NewGuid();
@@ -259,10 +259,10 @@ public class CancelarVendaHandlerTests
         _idempotencyStore.SaveAsync(requestId, nameof(CancelarVendaCommand), vendaId, Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
-        // Act
+        
         var result = await _handler.Handle(command, CancellationToken.None);
 
-        // Assert
+        
         result.IsSuccess.Should().BeTrue();
 
         // Verifica que evento CompraCancelada foi publicado
@@ -276,7 +276,7 @@ public class CancelarVendaHandlerTests
     [Fact]
     public async Task Handle_ComSucesso_DeveLimparEventosDeDominio()
     {
-        // Arrange
+        
         var requestId = Guid.NewGuid();
         var vendaId = Guid.NewGuid();
         var clienteId = Guid.NewGuid();
@@ -309,10 +309,10 @@ public class CancelarVendaHandlerTests
         _idempotencyStore.SaveAsync(requestId, nameof(CancelarVendaCommand), vendaId, Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
-        // Act
+        
         var result = await _handler.Handle(command, CancellationToken.None);
 
-        // Assert
+        
         result.IsSuccess.Should().BeTrue();
         vendaExistente.DomainEvents.Should().BeEmpty();
     }

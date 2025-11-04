@@ -15,6 +15,5 @@ public record ItemCancelado : DomainEvent
         ProdutoId = produtoId;
     }
 
-    // Construtor para desserialização
     private ItemCancelado() { }
 }

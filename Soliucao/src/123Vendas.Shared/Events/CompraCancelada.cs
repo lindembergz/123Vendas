@@ -15,7 +15,7 @@ public record CompraCancelada : DomainEvent
         Motivo = motivo ?? string.Empty;
     }
 
-    // Construtor para desserialização
+    //Construtor para desserialização
     private CompraCancelada()
     {
         Motivo = string.Empty;

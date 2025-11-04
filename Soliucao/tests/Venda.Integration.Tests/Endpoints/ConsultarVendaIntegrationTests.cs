@@ -29,13 +29,13 @@ public class ConsultarVendaIntegrationTests : IClassFixture<CustomWebApplication
     [Fact]
     public async Task Get_VendaExistente_DeveRetornar200ComDados()
     {
-        // Arrange
+        
         var vendaId = await CriarVendaHelper();
 
-        // Act
+        
         var response = await _client.GetAsync($"/api/v1/vendas/{vendaId}");
 
-        // Assert
+        
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         
         var venda = await response.Content.ReadFromJsonAsync<VendaDto>();
@@ -53,13 +53,13 @@ public class ConsultarVendaIntegrationTests : IClassFixture<CustomWebApplication
     [Fact]
     public async Task Get_VendaInexistente_DeveRetornar404()
     {
-        // Arrange
+        
         var idInexistente = Guid.NewGuid();
 
-        // Act
+        
         var response = await _client.GetAsync($"/api/v1/vendas/{idInexistente}");
 
-        // Assert
+        
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
         
         var content = await response.Content.ReadAsStringAsync();
@@ -70,7 +70,7 @@ public class ConsultarVendaIntegrationTests : IClassFixture<CustomWebApplication
     [Fact]
     public async Task Get_VendaComItens_DeveRetornarTodosItensComDescontos()
     {
-        // Arrange - Criar venda com múltiplos itens, incluindo um com desconto
+         - Criar venda com múltiplos itens, incluindo um com desconto
         var itemSemDesconto = new ItemVendaDto(
             ProdutoId: Guid.NewGuid(),
             Quantidade: 2,
@@ -90,10 +90,10 @@ public class ConsultarVendaIntegrationTests : IClassFixture<CustomWebApplication
         var createResponse = await _client.PostAsJsonAsync("/api/v1/vendas", request);
         var vendaId = await createResponse.Content.ReadFromJsonAsync<Guid>();
 
-        // Act
+        
         var response = await _client.GetAsync($"/api/v1/vendas/{vendaId}");
 
-        // Assert
+        
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         
         var venda = await response.Content.ReadFromJsonAsync<VendaDto>();
@@ -116,16 +116,16 @@ public class ConsultarVendaIntegrationTests : IClassFixture<CustomWebApplication
     [Fact]
     public async Task Get_VendaCancelada_DeveRetornarStatusCancelada()
     {
-        // Arrange
+        
         var vendaId = await CriarVendaHelper();
         
         // Cancelar a venda
         await _client.DeleteAsync($"/api/v1/vendas/{vendaId}");
 
-        // Act
+        
         var response = await _client.GetAsync($"/api/v1/vendas/{vendaId}");
 
-        // Assert
+        
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         
         var venda = await response.Content.ReadFromJsonAsync<VendaDto>();
@@ -137,13 +137,13 @@ public class ConsultarVendaIntegrationTests : IClassFixture<CustomWebApplication
     [Fact]
     public async Task Get_VendaExistente_DeveRetornarFormatoJsonCorreto()
     {
-        // Arrange
+        
         var vendaId = await CriarVendaHelper();
 
-        // Act
+        
         var response = await _client.GetAsync($"/api/v1/vendas/{vendaId}");
 
-        // Assert
+        
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         response.Content.Headers.ContentType.Should().NotBeNull();
         response.Content.Headers.ContentType!.MediaType.Should().Be("application/json");

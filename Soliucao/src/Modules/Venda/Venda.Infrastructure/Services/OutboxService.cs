@@ -36,7 +36,7 @@ public class OutboxService : IOutboxService
         };
         
         await _context.OutboxEvents.AddAsync(outboxEvent, ct);
-        // Nota: SaveChangesAsync será chamado pelo repositório na mesma transação
+        //Nota: SaveChangesAsync será chamado pelo repositório na mesma transação
     }
     
     public async Task<List<OutboxEvent>> ObterEventosPendentesAsync(int batchSize = 50, CancellationToken ct = default)

@@ -29,8 +29,8 @@ public class ClienteService : IClienteService
         {
             _logger.LogInformation("Verificando existência do cliente {ClienteId} no CRM", clienteId);
 
-            // Simula chamada HTTP para serviço de CRM
-            // Em produção, seria uma chamada real: GET /api/v1/clientes/{clienteId}
+            //Simula chamada HTTP para serviço de CRM
+            //Em produção, seria uma chamada real: GET /api/v1/clientes/{clienteId}
             var response = await _httpClient.GetAsync($"/api/v1/clientes/{clienteId}", ct);
 
             var existe = response.IsSuccessStatusCode;

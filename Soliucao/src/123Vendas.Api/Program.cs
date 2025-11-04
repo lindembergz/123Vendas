@@ -14,41 +14,41 @@ try
 
     var builder = WebApplication.CreateBuilder(args);
 
-    // 1. Configurar Logging
+    //1. Configurar Logging
     builder.AddSerilogConfiguration();
 
-    // 2. Configurar Swagger/OpenAPI
+    //2. Configurar Swagger/OpenAPI
     builder.Services.AddSwaggerConfiguration();
 
-    // 3. Registrar serviços de aplicação (MediatR, Repositories, etc.)
+    //3. Registrar serviços de aplicação (MediatR, Repositories, etc.)
     builder.Services.AddApplicationServices();
 
-    // 4. Configurar Database
+    //4. Configurar Database
     var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
         ?? "Data Source=vendas.db";
     builder.Services.AddDatabaseConfiguration(connectionString);
 
-    // 5. Registrar serviços de domínio
+    //5. Registrar serviços de domínio
     builder.Services.AddScoped<Venda.Domain.Interfaces.IPoliticaDesconto, Venda.Domain.Services.PoliticaDesconto>();
 
-    // 6. Configurar Health Checks
+    //6. Configurar Health Checks
     builder.Services.AddAppHealthChecks(connectionString);
 
-    // 7. Configurar Options Pattern para serviços externos
+    //7. Configurar Options Pattern para serviços externos
     builder.Services.Configure<ServiceSettings>("CRM", builder.Configuration.GetSection("Services:CRM"));
     builder.Services.Configure<ServiceSettings>("Estoque", builder.Configuration.GetSection("Services:Estoque"));
 
-    // 8. Configurar serviços externos (CRM e Estoque)
+    //8. Configurar serviços externos (CRM e Estoque)
     // MODO: MOCK para desenvolvimento (sempre retorna sucesso)
 
-    // ===== MOCK SERVICES (DESENVOLVIMENTO) =====
+    //===== MOCK SERVICES (DESENVOLVIMENTO) =====
     builder.Services.AddScoped<IClienteService, CRM.Application.Services.ClienteServiceMock>();
     builder.Services.AddScoped<IProdutoService, Estoque.Application.Services.ProdutoServiceMock>();
     Log.Information("Usando MOCK services para CRM e Estoque");
 
     var app = builder.Build();
 
-    // Configure the HTTP request pipeline.
+    //Configure the HTTP request pipeline.
     if (app.Environment.IsDevelopment())
     {
         app.UseSwagger();
@@ -65,11 +65,11 @@ try
 
     app.UseHttpsRedirection();
 
-    // Mapear endpoints
+    //Mapear endpoints
     app.MapVendasEndpoints();
     app.MapAppHealthChecks();
 
-    // Aplicar migrações automaticamente no startup (exceto em ambiente de testes)
+    //Aplicar migrações automaticamente no startup (exceto em ambiente de testes)
     if (!app.Environment.IsEnvironment("Testing"))
     {
         using (var scope = app.Services.CreateScope())
@@ -98,5 +98,5 @@ finally
     Log.CloseAndFlush();
 }
 
-// Make Program class accessible for integration tests
+//Make Program class accessible for integration tests
 public partial class Program { }

@@ -164,7 +164,7 @@ namespace _123Vendas.Demo
             }
             else
             {
-                ConsoleUIHelper.MostrarMensagemErro(resultado.Error);
+                ConsoleUIHelper.MostrarMensagemErro(resultado.Error ?? "Erro desconhecido ao adicionar item");
             }
         }
 
@@ -243,7 +243,7 @@ namespace _123Vendas.Demo
             }
             else
             {
-                ConsoleUIHelper.MostrarMensagemErro(resultado.Error);
+                ConsoleUIHelper.MostrarMensagemErro(resultado.Error ?? "Erro desconhecido ao remover item");
             }
         }
 

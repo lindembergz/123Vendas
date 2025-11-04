@@ -24,37 +24,37 @@ public class IdempotencyStoreTests : IDisposable
     [Fact]
     public async Task ExistsAsync_DeveRetornarTrueParaRequestIdExistente()
     {
-        // Arrange
+        
         var requestId = Guid.NewGuid();
         var commandType = "CriarVendaCommand";
         var aggregateId = Guid.NewGuid();
         
         await _idempotencyStore.SaveAsync(requestId, commandType, aggregateId);
         
-        // Act
+        
         var exists = await _idempotencyStore.ExistsAsync(requestId);
         
-        // Assert
+        
         exists.Should().BeTrue();
     }
     
     [Fact]
     public async Task ExistsAsync_DeveRetornarFalseParaRequestIdInexistente()
     {
-        // Arrange
+        
         var requestId = Guid.NewGuid();
         
-        // Act
+        
         var exists = await _idempotencyStore.ExistsAsync(requestId);
         
-        // Assert
+        
         exists.Should().BeFalse();
     }
     
     [Fact]
     public async Task ExistsAsync_DeveRetornarFalseParaRequestIdExpirado()
     {
-        // Arrange
+        
         var requestId = Guid.NewGuid();
         var commandType = "CriarVendaCommand";
         var aggregateId = Guid.NewGuid();
@@ -66,25 +66,25 @@ public class IdempotencyStoreTests : IDisposable
         key.ExpiresAt = DateTime.UtcNow.AddDays(-1);
         await _context.SaveChangesAsync();
         
-        // Act
+        
         var exists = await _idempotencyStore.ExistsAsync(requestId);
         
-        // Assert
+        
         exists.Should().BeFalse();
     }
     
     [Fact]
     public async Task SaveAsync_DeveSalvarChaveCorretamente()
     {
-        // Arrange
+        
         var requestId = Guid.NewGuid();
         var commandType = "CriarVendaCommand";
         var aggregateId = Guid.NewGuid();
         
-        // Act
+        
         await _idempotencyStore.SaveAsync(requestId, commandType, aggregateId);
         
-        // Assert
+        
         var key = await _context.IdempotencyKeys.FirstOrDefaultAsync(k => k.RequestId == requestId);
         key.Should().NotBeNull();
         key!.RequestId.Should().Be(requestId);
@@ -97,15 +97,15 @@ public class IdempotencyStoreTests : IDisposable
     [Fact]
     public async Task SaveAsync_DeveConfigurarExpiracaoDe7Dias()
     {
-        // Arrange
+        
         var requestId = Guid.NewGuid();
         var commandType = "CriarVendaCommand";
         var aggregateId = Guid.NewGuid();
         
-        // Act
+        
         await _idempotencyStore.SaveAsync(requestId, commandType, aggregateId);
         
-        // Assert
+        
         var key = await _context.IdempotencyKeys.FirstAsync(k => k.RequestId == requestId);
         var expectedExpiration = DateTime.UtcNow.AddDays(7);
         key.ExpiresAt.Should().BeCloseTo(expectedExpiration, TimeSpan.FromSeconds(5));
@@ -114,17 +114,17 @@ public class IdempotencyStoreTests : IDisposable
     [Fact]
     public async Task GetAggregateIdAsync_DeveRetornarIdCorreto()
     {
-        // Arrange
+        
         var requestId = Guid.NewGuid();
         var commandType = "CriarVendaCommand";
         var aggregateId = Guid.NewGuid();
         
         await _idempotencyStore.SaveAsync(requestId, commandType, aggregateId);
         
-        // Act
+        
         var retrievedAggregateId = await _idempotencyStore.GetAggregateIdAsync(requestId);
         
-        // Assert
+        
         retrievedAggregateId.Should().NotBeNull();
         retrievedAggregateId.Should().Be(aggregateId);
     }
@@ -132,20 +132,20 @@ public class IdempotencyStoreTests : IDisposable
     [Fact]
     public async Task GetAggregateIdAsync_DeveRetornarNullParaRequestIdInexistente()
     {
-        // Arrange
+        
         var requestId = Guid.NewGuid();
         
-        // Act
+        
         var retrievedAggregateId = await _idempotencyStore.GetAggregateIdAsync(requestId);
         
-        // Assert
+        
         retrievedAggregateId.Should().BeNull();
     }
     
     [Fact]
     public async Task GetAggregateIdAsync_DeveRetornarNullParaRequestIdExpirado()
     {
-        // Arrange
+        
         var requestId = Guid.NewGuid();
         var commandType = "CriarVendaCommand";
         var aggregateId = Guid.NewGuid();
@@ -157,28 +157,28 @@ public class IdempotencyStoreTests : IDisposable
         key.ExpiresAt = DateTime.UtcNow.AddDays(-1);
         await _context.SaveChangesAsync();
         
-        // Act
+        
         var retrievedAggregateId = await _idempotencyStore.GetAggregateIdAsync(requestId);
         
-        // Assert
+        
         retrievedAggregateId.Should().BeNull();
     }
     
     [Fact]
     public async Task SaveAsync_DevePermitirMultiplasChavesComDiferentesRequestIds()
     {
-        // Arrange
+        
         var requestId1 = Guid.NewGuid();
         var requestId2 = Guid.NewGuid();
         var commandType = "CriarVendaCommand";
         var aggregateId1 = Guid.NewGuid();
         var aggregateId2 = Guid.NewGuid();
         
-        // Act
+        
         await _idempotencyStore.SaveAsync(requestId1, commandType, aggregateId1);
         await _idempotencyStore.SaveAsync(requestId2, commandType, aggregateId2);
         
-        // Assert
+        
         var keys = await _context.IdempotencyKeys.ToListAsync();
         keys.Should().HaveCount(2);
         

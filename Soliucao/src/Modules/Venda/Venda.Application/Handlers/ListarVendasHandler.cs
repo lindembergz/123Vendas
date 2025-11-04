@@ -18,7 +18,7 @@ public class ListarVendasHandler : IRequestHandler<ListarVendasQuery, PagedResul
     
     public async Task<PagedResult<VendaDto>> Handle(ListarVendasQuery request, CancellationToken cancellationToken)
     {
-        // Parse status string para enum se fornecido
+        //Parse status string para enum se fornecido
         StatusVenda? status = null;
         if (!string.IsNullOrWhiteSpace(request.Status) && 
             Enum.TryParse<StatusVenda>(request.Status, true, out var statusEnum))

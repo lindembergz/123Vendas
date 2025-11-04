@@ -17,7 +17,7 @@ public record CompraAlterada : DomainEvent
         ProdutosModificados = produtosModificados.ToArray();
     }
 
-    // Construtor para desserialização JSON
+    //Construtor para desserialização JSON
     [JsonConstructor]
     public CompraAlterada(Guid vendaId, Guid[] produtosModificados)
     {

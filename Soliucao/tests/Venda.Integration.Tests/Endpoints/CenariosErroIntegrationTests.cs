@@ -27,13 +27,13 @@ public class CenariosErroIntegrationTests : IClassFixture<CustomWebApplicationFa
     [Fact]
     public async Task Post_DadosInvalidos_DeveRetornarProblemDetails()
     {
-        // Arrange - Enviar objeto vazio (sem campos obrigatórios)
+         - Enviar objeto vazio (sem campos obrigatórios)
         var requestInvalido = new { };
 
-        // Act
+        
         var response = await _client.PostAsJsonAsync("/api/v1/vendas", requestInvalido);
 
-        // Assert
+        
         // NOTA: Atualmente retorna 500 porque a validação de modelo não está configurada
         // O ideal seria retornar 400, mas sem FluentValidation no pipeline, a exceção causa 500
         response.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
@@ -47,17 +47,17 @@ public class CenariosErroIntegrationTests : IClassFixture<CustomWebApplicationFa
     [Fact]
     public async Task Post_ErroValidacao_DeveRetornar400ComDetalhes()
     {
-        // Arrange - Venda com ClienteId vazio (inválido)
+         - Venda com ClienteId vazio (inválido)
         var request = new CriarVendaRequest(
             ClienteId: Guid.Empty,
             FilialId: Guid.NewGuid(),
             Itens: _builder.GerarItens(1)
         );
 
-        // Act
+        
         var response = await _client.PostAsJsonAsync("/api/v1/vendas", request);
 
-        // Assert
+        
         response.StatusCode.Should().BeOneOf(
             HttpStatusCode.BadRequest, 
             HttpStatusCode.InternalServerError);
@@ -78,13 +78,13 @@ public class CenariosErroIntegrationTests : IClassFixture<CustomWebApplicationFa
     [Fact]
     public async Task Get_RecursoNaoEncontrado_DeveRetornar404ComDetalhes()
     {
-        // Arrange - ID que não existe no banco
+         - ID que não existe no banco
         var idInexistente = Guid.NewGuid();
 
-        // Act
+        
         var response = await _client.GetAsync($"/api/v1/vendas/{idInexistente}");
 
-        // Assert
+        
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
         
         var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
@@ -98,7 +98,7 @@ public class CenariosErroIntegrationTests : IClassFixture<CustomWebApplicationFa
     [Fact]
     public async Task Put_RegraNegocioViolada_DeveRetornar400ComDetalhes()
     {
-        // Arrange - Criar uma venda e cancelá-la
+         - Criar uma venda e cancelá-la
         var vendaId = await CriarVendaHelper();
         await _client.DeleteAsync($"/api/v1/vendas/{vendaId}");
 
@@ -106,10 +106,10 @@ public class CenariosErroIntegrationTests : IClassFixture<CustomWebApplicationFa
         var novosItens = _builder.GerarItens(1);
         var request = new AtualizarVendaRequest(novosItens);
 
-        // Act
+        
         var response = await _client.PutAsJsonAsync($"/api/v1/vendas/{vendaId}", request);
 
-        // Assert
+        
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         
         var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
@@ -122,13 +122,13 @@ public class CenariosErroIntegrationTests : IClassFixture<CustomWebApplicationFa
     [Fact]
     public async Task Erro_DeveIncluirTitleEDetailNoProblemDetails()
     {
-        // Arrange - Cenário que gera erro 404
+         - Cenário que gera erro 404
         var idInexistente = Guid.NewGuid();
 
-        // Act
+        
         var response = await _client.GetAsync($"/api/v1/vendas/{idInexistente}");
 
-        // Assert
+        
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
         
         var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
@@ -148,7 +148,7 @@ public class CenariosErroIntegrationTests : IClassFixture<CustomWebApplicationFa
     [Fact]
     public async Task Post_VendaComMaisDe20Unidades_DeveRetornar400ComProblemDetails()
     {
-        // Arrange - Item com mais de 20 unidades (viola regra de negócio)
+         - Item com mais de 20 unidades (viola regra de negócio)
         var item = new ItemVendaDto(
             ProdutoId: Guid.NewGuid(),
             Quantidade: 25,
@@ -163,10 +163,10 @@ public class CenariosErroIntegrationTests : IClassFixture<CustomWebApplicationFa
             Itens: new List<ItemVendaDto> { item }
         );
 
-        // Act
+        
         var response = await _client.PostAsJsonAsync("/api/v1/vendas", request);
 
-        // Assert
+        
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         
         var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
@@ -179,13 +179,13 @@ public class CenariosErroIntegrationTests : IClassFixture<CustomWebApplicationFa
     [Fact]
     public async Task Delete_VendaInexistente_DeveRetornar404ComProblemDetails()
     {
-        // Arrange
+        
         var idInexistente = Guid.NewGuid();
 
-        // Act
+        
         var response = await _client.DeleteAsync($"/api/v1/vendas/{idInexistente}");
 
-        // Assert
+        
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
         
         var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
@@ -198,14 +198,14 @@ public class CenariosErroIntegrationTests : IClassFixture<CustomWebApplicationFa
     [Fact]
     public async Task Put_VendaInexistente_DeveRetornar404ComProblemDetails()
     {
-        // Arrange
+        
         var idInexistente = Guid.NewGuid();
         var request = new AtualizarVendaRequest(_builder.GerarItens(1));
 
-        // Act
+        
         var response = await _client.PutAsJsonAsync($"/api/v1/vendas/{idInexistente}", request);
 
-        // Assert
+        
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
         
         var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();

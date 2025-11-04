@@ -23,10 +23,10 @@ public class HealthCheckEndpointsTests : IClassFixture<WebApplicationFactory<Pro
     [Fact]
     public async Task GET_Health_DeveRetornar200OK()
     {
-        // Act
+        
         var response = await _client.GetAsync("/health");
 
-        // Assert
+        
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         response.Content.Headers.ContentType?.MediaType.Should().Be("application/json");
     }
@@ -34,12 +34,12 @@ public class HealthCheckEndpointsTests : IClassFixture<WebApplicationFactory<Pro
     [Fact]
     public async Task GET_Health_DeveRetornarJsonComStatusEChecks()
     {
-        // Act
+        
         var response = await _client.GetAsync("/health");
         var content = await response.Content.ReadAsStringAsync();
         var healthReport = JsonSerializer.Deserialize<JsonElement>(content);
 
-        // Assert
+        
         healthReport.TryGetProperty("status", out var status).Should().BeTrue();
         status.GetString().Should().NotBeNullOrEmpty();
 
@@ -53,12 +53,12 @@ public class HealthCheckEndpointsTests : IClassFixture<WebApplicationFactory<Pro
     [Fact]
     public async Task GET_Health_DeveIncluirTodosOsChecks()
     {
-        // Act
+        
         var response = await _client.GetAsync("/health");
         var content = await response.Content.ReadAsStringAsync();
         var healthReport = JsonSerializer.Deserialize<JsonElement>(content);
 
-        // Assert
+        
         healthReport.TryGetProperty("checks", out var checks).Should().BeTrue();
         var checksList = checks.EnumerateArray().ToList();
 
@@ -75,10 +75,10 @@ public class HealthCheckEndpointsTests : IClassFixture<WebApplicationFactory<Pro
     [Fact]
     public async Task GET_Ready_DeveRetornar200OK()
     {
-        // Act
+        
         var response = await _client.GetAsync("/ready");
 
-        // Assert
+        
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         response.Content.Headers.ContentType?.MediaType.Should().Be("application/json");
     }
@@ -86,12 +86,12 @@ public class HealthCheckEndpointsTests : IClassFixture<WebApplicationFactory<Pro
     [Fact]
     public async Task GET_Ready_DeveRetornarApenasStatusSelf()
     {
-        // Act
+        
         var response = await _client.GetAsync("/ready");
         var content = await response.Content.ReadAsStringAsync();
         var healthReport = JsonSerializer.Deserialize<JsonElement>(content);
 
-        // Assert
+        
         healthReport.TryGetProperty("status", out var status).Should().BeTrue();
         status.GetString().Should().Be("Healthy");
     }
@@ -99,10 +99,10 @@ public class HealthCheckEndpointsTests : IClassFixture<WebApplicationFactory<Pro
     [Fact]
     public async Task GET_Live_DeveRetornar200OK()
     {
-        // Act
+        
         var response = await _client.GetAsync("/live");
 
-        // Assert
+        
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         response.Content.Headers.ContentType?.MediaType.Should().Be("application/json");
     }
@@ -110,12 +110,12 @@ public class HealthCheckEndpointsTests : IClassFixture<WebApplicationFactory<Pro
     [Fact]
     public async Task GET_Live_DeveRetornarStatusComDbESelf()
     {
-        // Act
+        
         var response = await _client.GetAsync("/live");
         var content = await response.Content.ReadAsStringAsync();
         var healthReport = JsonSerializer.Deserialize<JsonElement>(content);
 
-        // Assert
+        
         healthReport.TryGetProperty("status", out var status).Should().BeTrue();
         var statusValue = status.GetString();
         statusValue.Should().BeOneOf("Healthy", "Degraded", "Unhealthy");
@@ -124,12 +124,12 @@ public class HealthCheckEndpointsTests : IClassFixture<WebApplicationFactory<Pro
     [Fact]
     public async Task GET_Health_ChecksSqlite_DeveIncluirInformacoes()
     {
-        // Act
+        
         var response = await _client.GetAsync("/health");
         var content = await response.Content.ReadAsStringAsync();
         var healthReport = JsonSerializer.Deserialize<JsonElement>(content);
 
-        // Assert
+        
         healthReport.TryGetProperty("checks", out var checks).Should().BeTrue();
         var sqliteCheck = checks.EnumerateArray()
             .FirstOrDefault(c => c.GetProperty("name").GetString() == "sqlite");
@@ -143,12 +143,12 @@ public class HealthCheckEndpointsTests : IClassFixture<WebApplicationFactory<Pro
     [Fact]
     public async Task GET_Health_ChecksOutbox_DeveIncluirDados()
     {
-        // Act
+        
         var response = await _client.GetAsync("/health");
         var content = await response.Content.ReadAsStringAsync();
         var healthReport = JsonSerializer.Deserialize<JsonElement>(content);
 
-        // Assert
+        
         healthReport.TryGetProperty("checks", out var checks).Should().BeTrue();
         var outboxCheck = checks.EnumerateArray()
             .FirstOrDefault(c => c.GetProperty("name").GetString() == "outbox");
@@ -165,12 +165,12 @@ public class HealthCheckEndpointsTests : IClassFixture<WebApplicationFactory<Pro
     [Fact]
     public async Task GET_Health_ChecksSelf_DeveSempreRetornarHealthy()
     {
-        // Act
+        
         var response = await _client.GetAsync("/health");
         var content = await response.Content.ReadAsStringAsync();
         var healthReport = JsonSerializer.Deserialize<JsonElement>(content);
 
-        // Assert
+        
         healthReport.TryGetProperty("checks", out var checks).Should().BeTrue();
         var selfCheck = checks.EnumerateArray()
             .FirstOrDefault(c => c.GetProperty("name").GetString() == "self");

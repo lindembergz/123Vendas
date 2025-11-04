@@ -33,8 +33,8 @@ public class ProdutoService : IProdutoService
                 quantidade,
                 produtoId);
 
-            // Simula chamada HTTP para serviço de Estoque
-            // Em produção, seria uma chamada real: POST /api/v1/produtos/{produtoId}/reservar
+            //Simula chamada HTTP para serviço de Estoque
+            //Em produção, seria uma chamada real: POST /api/v1/produtos/{produtoId}/reservar
             var request = new
             {
                 produtoId,

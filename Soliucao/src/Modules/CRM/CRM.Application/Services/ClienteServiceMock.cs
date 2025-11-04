@@ -22,7 +22,7 @@ public class ClienteServiceMock : IClienteService
             "[MOCK] Verificando cliente {ClienteId} - Sempre retorna TRUE",
             clienteId);
 
-        // MOCK: Sempre retorna que o cliente existe
+        //MOCK:sempre retorna que o cliente existe
         return Task.FromResult(true);
     }
 }

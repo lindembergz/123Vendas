@@ -29,14 +29,14 @@ public class ClienteServiceTests
     [Fact]
     public async Task ClienteExisteAsync_QuandoClienteExiste_DeveRetornarTrue()
     {
-        // Arrange
+        
         var clienteId = Guid.NewGuid();
         _httpMessageHandler.ResponseToReturn = new HttpResponseMessage(HttpStatusCode.OK);
 
-        // Act
+        
         var resultado = await _clienteService.ClienteExisteAsync(clienteId);
 
-        // Assert
+        
         resultado.Should().BeTrue();
         _httpMessageHandler.LastRequestUri.Should().Be($"https://crm-api.example.com/api/v1/clientes/{clienteId}");
     }
@@ -44,28 +44,28 @@ public class ClienteServiceTests
     [Fact]
     public async Task ClienteExisteAsync_QuandoClienteNaoExiste_DeveRetornarFalse()
     {
-        // Arrange
+        
         var clienteId = Guid.NewGuid();
         _httpMessageHandler.ResponseToReturn = new HttpResponseMessage(HttpStatusCode.NotFound);
 
-        // Act
+        
         var resultado = await _clienteService.ClienteExisteAsync(clienteId);
 
-        // Assert
+        
         resultado.Should().BeFalse();
     }
 
     [Fact]
     public async Task ClienteExisteAsync_QuandoOcorreErroDeRede_DeveLancarHttpRequestException()
     {
-        // Arrange
+        
         var clienteId = Guid.NewGuid();
         _httpMessageHandler.ExceptionToThrow = new HttpRequestException("Network error");
 
-        // Act
+        
         var act = async () => await _clienteService.ClienteExisteAsync(clienteId);
 
-        // Assert
+        
         await act.Should().ThrowAsync<HttpRequestException>()
             .WithMessage("Network error");
     }
@@ -73,14 +73,14 @@ public class ClienteServiceTests
     [Fact]
     public async Task ClienteExisteAsync_QuandoOcorreTimeout_DeveLancarTaskCanceledException()
     {
-        // Arrange
+        
         var clienteId = Guid.NewGuid();
         _httpMessageHandler.ExceptionToThrow = new TaskCanceledException("Request timeout");
 
-        // Act
+        
         var act = async () => await _clienteService.ClienteExisteAsync(clienteId);
 
-        // Assert
+        
         await act.Should().ThrowAsync<TaskCanceledException>();
     }
 

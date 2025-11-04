@@ -47,7 +47,7 @@ public class AtualizarVendaHandlerTests
     [Fact]
     public async Task Handle_AdicionandoNovoItem_DeveManterItensExistentes()
     {
-        // Arrange
+        
         var requestId = Guid.NewGuid();
         var vendaId = Guid.NewGuid();
         var clienteId = Guid.NewGuid();
@@ -88,10 +88,10 @@ public class AtualizarVendaHandlerTests
         _idempotencyStore.SaveAsync(requestId, nameof(AtualizarVendaCommand), vendaId, Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
-        // Act
+        
         var result = await _handler.Handle(command, CancellationToken.None);
 
-        // Assert
+        
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().NotBeNull();
         result.Value!.Id.Should().Be(vendaId);
@@ -120,7 +120,7 @@ public class AtualizarVendaHandlerTests
     [Fact]
     public async Task Handle_ComVendaNaoEncontrada_DeveRetornarFailure()
     {
-        // Arrange
+        
         var requestId = Guid.NewGuid();
         var vendaId = Guid.NewGuid();
 
@@ -139,10 +139,10 @@ public class AtualizarVendaHandlerTests
         _vendaRepository.ObterPorIdAsync(vendaId, Arg.Any<CancellationToken>())
             .Returns((VendaAgregado?)null);
 
-        // Act
+        
         var result = await _handler.Handle(command, CancellationToken.None);
 
-        // Assert
+        
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("não encontrada");
         result.Error.Should().Contain(vendaId.ToString());
@@ -165,7 +165,7 @@ public class AtualizarVendaHandlerTests
     [Fact]
     public async Task Handle_ComRequestIdExistente_DeveRetornarVendaExistenteSemAtualizar()
     {
-        // Arrange
+        
         var requestId = Guid.NewGuid();
         var vendaId = Guid.NewGuid();
         var clienteId = Guid.NewGuid();
@@ -199,10 +199,10 @@ public class AtualizarVendaHandlerTests
         _vendaRepository.ObterPorIdAsync(vendaId, Arg.Any<CancellationToken>())
             .Returns(vendaExistente);
 
-        // Act
+        
         var result = await _handler.Handle(command, CancellationToken.None);
 
-        // Assert
+        
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().NotBeNull();
         result.Value!.Id.Should().Be(vendaId);
@@ -221,7 +221,7 @@ public class AtualizarVendaHandlerTests
     [Fact]
     public async Task Handle_ComMaisDe20ItensIguais_DeveRetornarFailure()
     {
-        // Arrange
+        
         var requestId = Guid.NewGuid();
         var vendaId = Guid.NewGuid();
         var clienteId = Guid.NewGuid();
@@ -254,10 +254,10 @@ public class AtualizarVendaHandlerTests
         _vendaRepository.ObterPorIdAsync(vendaId, Arg.Any<CancellationToken>())
             .Returns(vendaExistente);
 
-        // Act
+        
         var result = await _handler.Handle(command, CancellationToken.None);
 
-        // Assert
+        
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("20 unidades");
 
@@ -275,7 +275,7 @@ public class AtualizarVendaHandlerTests
     [Fact]
     public async Task Handle_SubstituindoTodosOsItens_DeveRemoverAntigosEAdicionarNovos()
     {
-        // Arrange
+        
         var requestId = Guid.NewGuid();
         var vendaId = Guid.NewGuid();
         var clienteId = Guid.NewGuid();
@@ -319,10 +319,10 @@ public class AtualizarVendaHandlerTests
         _idempotencyStore.SaveAsync(requestId, nameof(AtualizarVendaCommand), vendaId, Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
-        // Act
+        
         var result = await _handler.Handle(command, CancellationToken.None);
 
-        // Assert
+        
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().NotBeNull();
         result.Value!.Itens.Should().HaveCount(2);
@@ -349,7 +349,7 @@ public class AtualizarVendaHandlerTests
     [Fact]
     public async Task Handle_ComVendaCancelada_DeveRetornarFailure()
     {
-        // Arrange
+        
         var requestId = Guid.NewGuid();
         var vendaId = Guid.NewGuid();
         var clienteId = Guid.NewGuid();
@@ -381,10 +381,10 @@ public class AtualizarVendaHandlerTests
         _vendaRepository.ObterPorIdAsync(vendaId, Arg.Any<CancellationToken>())
             .Returns(vendaExistente);
 
-        // Act
+        
         var result = await _handler.Handle(command, CancellationToken.None);
 
-        // Assert
+        
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("cancelada");
 
@@ -396,7 +396,7 @@ public class AtualizarVendaHandlerTests
     [Fact]
     public async Task Handle_AumentandoQuantidadeDeItemExistente_DeveAtualizarQuantidade()
     {
-        // Arrange
+        
         var requestId = Guid.NewGuid();
         var vendaId = Guid.NewGuid();
         var clienteId = Guid.NewGuid();
@@ -434,10 +434,10 @@ public class AtualizarVendaHandlerTests
         _idempotencyStore.SaveAsync(requestId, nameof(AtualizarVendaCommand), vendaId, Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
-        // Act
+        
         var result = await _handler.Handle(command, CancellationToken.None);
 
-        // Assert
+        
         result.IsSuccess.Should().BeTrue();
         result.Value!.Itens.Should().HaveCount(1);
         result.Value.Itens[0].ProdutoId.Should().Be(produtoId);
@@ -452,7 +452,7 @@ public class AtualizarVendaHandlerTests
     [Fact]
     public async Task Handle_DiminuindoQuantidadeDeItemExistente_DeveAtualizarQuantidade()
     {
-        // Arrange
+        
         var requestId = Guid.NewGuid();
         var vendaId = Guid.NewGuid();
         var clienteId = Guid.NewGuid();
@@ -490,10 +490,10 @@ public class AtualizarVendaHandlerTests
         _idempotencyStore.SaveAsync(requestId, nameof(AtualizarVendaCommand), vendaId, Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
-        // Act
+        
         var result = await _handler.Handle(command, CancellationToken.None);
 
-        // Assert
+        
         result.IsSuccess.Should().BeTrue();
         result.Value!.Itens.Should().HaveCount(1);
         result.Value.Itens[0].ProdutoId.Should().Be(produtoId);
@@ -508,7 +508,7 @@ public class AtualizarVendaHandlerTests
     [Fact]
     public async Task Handle_RemovendoItemCompletamente_DevePublicarItemCancelado()
     {
-        // Arrange
+        
         var requestId = Guid.NewGuid();
         var vendaId = Guid.NewGuid();
         var clienteId = Guid.NewGuid();
@@ -548,10 +548,10 @@ public class AtualizarVendaHandlerTests
         _idempotencyStore.SaveAsync(requestId, nameof(AtualizarVendaCommand), vendaId, Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
-        // Act
+        
         var result = await _handler.Handle(command, CancellationToken.None);
 
-        // Assert
+        
         result.IsSuccess.Should().BeTrue();
         result.Value!.Itens.Should().HaveCount(1);
         result.Value.Itens[0].ProdutoId.Should().Be(produtoId2);
@@ -565,7 +565,7 @@ public class AtualizarVendaHandlerTests
     [Fact]
     public async Task Handle_MantentoQuantidadeIgual_NaoDeveGerarEventos()
     {
-        // Arrange
+        
         var requestId = Guid.NewGuid();
         var vendaId = Guid.NewGuid();
         var clienteId = Guid.NewGuid();
@@ -603,10 +603,10 @@ public class AtualizarVendaHandlerTests
         _idempotencyStore.SaveAsync(requestId, nameof(AtualizarVendaCommand), vendaId, Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
-        // Act
+        
         var result = await _handler.Handle(command, CancellationToken.None);
 
-        // Assert
+        
         result.IsSuccess.Should().BeTrue();
         result.Value!.Itens.Should().HaveCount(1);
         result.Value.Itens[0].Quantidade.Should().Be(3);

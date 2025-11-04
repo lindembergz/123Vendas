@@ -20,7 +20,7 @@ public class HttpClientPollyIntegrationTests
     [Fact]
     public async Task ClienteService_ComRetryPolicy_DeveTentarNovamenteAposErroTransitorio()
     {
-        // Arrange
+        
         var services = new ServiceCollection();
         services.AddLogging();
         
@@ -51,10 +51,10 @@ public class HttpClientPollyIntegrationTests
         var provider = services.BuildServiceProvider();
         var clienteService = provider.GetRequiredService<IClienteService>();
 
-        // Act
+        
         var resultado = await clienteService.ClienteExisteAsync(Guid.NewGuid());
 
-        // Assert
+        
         resultado.Should().BeTrue();
         tentativas.Should().Be(3, "deve ter tentado 3 vezes antes de obter sucesso");
     }
@@ -62,7 +62,7 @@ public class HttpClientPollyIntegrationTests
     [Fact]
     public async Task ProdutoService_ComCircuitBreaker_DeveAbrirCircuitoApos5Falhas()
     {
-        // Arrange
+        
         var services = new ServiceCollection();
         services.AddLogging();
         
@@ -88,7 +88,7 @@ public class HttpClientPollyIntegrationTests
         var provider = services.BuildServiceProvider();
         var produtoService = provider.GetRequiredService<IProdutoService>();
 
-        // Act - Fazer 5 chamadas para abrir o circuito
+         - Fazer 5 chamadas para abrir o circuito
         for (int i = 0; i < 5; i++)
         {
             try
@@ -104,7 +104,7 @@ public class HttpClientPollyIntegrationTests
         // A 6ª chamada deve lançar BrokenCircuitException
         var act = async () => await produtoService.ReservarEstoqueAsync(Guid.NewGuid(), 1);
 
-        // Assert
+        
         await act.Should().ThrowAsync<Polly.CircuitBreaker.BrokenCircuitException>(
             "o circuito deve estar aberto após 5 falhas consecutivas");
         
@@ -114,7 +114,7 @@ public class HttpClientPollyIntegrationTests
     [Fact]
     public async Task ClienteService_ComTimeout_DeveLancarTaskCanceledException()
     {
-        // Arrange
+        
         var services = new ServiceCollection();
         services.AddLogging();
         
@@ -135,10 +135,10 @@ public class HttpClientPollyIntegrationTests
         var provider = services.BuildServiceProvider();
         var clienteService = provider.GetRequiredService<IClienteService>();
 
-        // Act
+        
         var act = async () => await clienteService.ClienteExisteAsync(Guid.NewGuid());
 
-        // Assert
+        
         await act.Should().ThrowAsync<TaskCanceledException>(
             "a requisição deve ser cancelada por timeout");
     }

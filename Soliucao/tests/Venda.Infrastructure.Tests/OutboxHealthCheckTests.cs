@@ -37,13 +37,13 @@ public class OutboxHealthCheckTests : IDisposable
     [Fact]
     public async Task CheckHealthAsync_SemEventos_DeveRetornarHealthy()
     {
-        // Arrange
+        
         var healthCheckContext = new HealthCheckContext();
 
-        // Act
+        
         var result = await _healthCheck.CheckHealthAsync(healthCheckContext);
 
-        // Assert
+        
         result.Status.Should().Be(HealthStatus.Healthy);
         result.Description.Should().Be("Outbox processando normalmente");
         result.Data.Should().ContainKey("pendentes");
@@ -55,7 +55,7 @@ public class OutboxHealthCheckTests : IDisposable
     [Fact]
     public async Task CheckHealthAsync_ComEventosPendentesRecentes_DeveRetornarHealthy()
     {
-        // Arrange
+        
         var healthCheckContext = new HealthCheckContext();
 
         // Adicionar eventos pendentes recentes (menos de 10 minutos)
@@ -73,10 +73,10 @@ public class OutboxHealthCheckTests : IDisposable
         }
         await _context.SaveChangesAsync();
 
-        // Act
+        
         var result = await _healthCheck.CheckHealthAsync(healthCheckContext);
 
-        // Assert
+        
         result.Status.Should().Be(HealthStatus.Healthy);
         result.Data["pendentes"].Should().Be(0); // Não conta eventos recentes
     }
@@ -84,7 +84,7 @@ public class OutboxHealthCheckTests : IDisposable
     [Fact]
     public async Task CheckHealthAsync_ComMuitosEventosPendentes_DeveRetornarDegraded()
     {
-        // Arrange
+        
         var healthCheckContext = new HealthCheckContext();
 
         // Adicionar mais de 1000 eventos pendentes antigos (mais de 10 minutos)
@@ -102,10 +102,10 @@ public class OutboxHealthCheckTests : IDisposable
         }
         await _context.SaveChangesAsync();
 
-        // Act
+        
         var result = await _healthCheck.CheckHealthAsync(healthCheckContext);
 
-        // Assert
+        
         result.Status.Should().Be(HealthStatus.Degraded);
         result.Description.Should().Contain("Muitos eventos pendentes");
         result.Data["pendentes"].Should().Be(1001);
@@ -114,7 +114,7 @@ public class OutboxHealthCheckTests : IDisposable
     [Fact]
     public async Task CheckHealthAsync_ComMuitosEventosFalhados_DeveRetornarUnhealthy()
     {
-        // Arrange
+        
         var healthCheckContext = new HealthCheckContext();
 
         // Adicionar mais de 100 eventos falhados
@@ -133,10 +133,10 @@ public class OutboxHealthCheckTests : IDisposable
         }
         await _context.SaveChangesAsync();
 
-        // Act
+        
         var result = await _healthCheck.CheckHealthAsync(healthCheckContext);
 
-        // Assert
+        
         result.Status.Should().Be(HealthStatus.Unhealthy);
         result.Description.Should().Contain("Muitos eventos falhados");
         result.Data["falhados"].Should().Be(101);
@@ -145,7 +145,7 @@ public class OutboxHealthCheckTests : IDisposable
     [Fact]
     public async Task CheckHealthAsync_ComEventosMistos_DeveRetornarStatusCorreto()
     {
-        // Arrange
+        
         var healthCheckContext = new HealthCheckContext();
 
         // Adicionar eventos pendentes antigos (50)
@@ -192,10 +192,10 @@ public class OutboxHealthCheckTests : IDisposable
 
         await _context.SaveChangesAsync();
 
-        // Act
+        
         var result = await _healthCheck.CheckHealthAsync(healthCheckContext);
 
-        // Assert
+        
         result.Status.Should().Be(HealthStatus.Healthy);
         result.Data["pendentes"].Should().Be(50);
         result.Data["falhados"].Should().Be(10);

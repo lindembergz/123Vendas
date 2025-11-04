@@ -32,8 +32,8 @@ public class CrmEventHandler : INotificationHandler<CompraCriada>
                 notification.VendaId,
                 notification.NumeroVenda);
 
-            // Simulação: em produção, chamaria serviço de CRM real
-            // Exemplo: await _crmService.AtualizarHistoricoClienteAsync(notification.ClienteId, notification.VendaId, cancellationToken);
+            //Simulação: em produção, chamaria serviço de CRM real
+            //Exemplo: await _crmService.AtualizarHistoricoClienteAsync(notification.ClienteId, notification.VendaId, cancellationToken);
             
             await Task.CompletedTask;
 
@@ -43,7 +43,7 @@ public class CrmEventHandler : INotificationHandler<CompraCriada>
         }
         catch (Exception ex)
         {
-            // Graceful degradation: loga erro mas não propaga exceção
+            //Graceful degradation: loga erro mas não propaga exceção
             _logger.LogError(
                 ex,
                 "Erro ao processar atualização de histórico para cliente {ClienteId}. Operação continuará sem bloquear o fluxo principal.",

@@ -19,7 +19,6 @@ public class VendaRepository : IVendaRepository
     
     public async Task<VendaAgregado?> ObterPorIdAsync(Guid id, CancellationToken ct = default)
     {
-        // Não usar AsNoTracking aqui pois pode ser usado para atualização
         return await _context.Vendas
             .FirstOrDefaultAsync(v => v.Id == id, ct);
     }
@@ -44,7 +43,7 @@ public class VendaRepository : IVendaRepository
     {
         var query = _context.Vendas.AsNoTracking();
         
-        // Aplicar filtros
+        //Aplicar filtros
         if (clienteId.HasValue)
             query = query.Where(v => v.ClienteId == clienteId.Value);
         
@@ -62,10 +61,10 @@ public class VendaRepository : IVendaRepository
         if (dataFim.HasValue)
             query = query.Where(v => v.Data <= dataFim.Value);
         
-        // Contar total antes da paginação
+        //Contar total antes da paginação
         var totalCount = await query.CountAsync(ct);
         
-        // Aplicar paginação e ordenação
+        //Aplicar paginação e ordenação
         var items = await query
             .OrderByDescending(v => v.Data)
             .Skip((pageNumber - 1) * pageSize)
@@ -80,14 +79,14 @@ public class VendaRepository : IVendaRepository
         if (venda == null)
             throw new ArgumentNullException(nameof(venda));
         
-        // Gerar número sequencial por filial ANTES de adicionar
+        //Gerar número sequencial por filial ANTES de adicionar
         var ultimoNumero = await ObterUltimoNumeroPorFilialAsync(venda.FilialId, ct);
         var novoNumero = ultimoNumero + 1;
         venda.DefinirNumeroVenda(novoNumero);
         
         await _context.Vendas.AddAsync(venda, ct);
         
-        // Adicionar eventos ao outbox na mesma transação
+        //Adicionar eventos ao outbox na mesma transação
         foreach (var evento in venda.DomainEvents)
         {
             await _outboxService.AdicionarEventoAsync(evento, ct);
@@ -95,7 +94,7 @@ public class VendaRepository : IVendaRepository
         
         await _context.SaveChangesAsync(ct);
         
-        // Limpar eventos após persistir
+        //Limpar eventos após persistir
         venda.ClearDomainEvents();
     }
     
@@ -106,7 +105,7 @@ public class VendaRepository : IVendaRepository
         
         _context.Vendas.Update(venda);
         
-        // Adicionar eventos ao outbox na mesma transação
+        //Adicionar eventos ao outbox na mesma transação
         foreach (var evento in venda.DomainEvents)
         {
             await _outboxService.AdicionarEventoAsync(evento, ct);
@@ -114,7 +113,7 @@ public class VendaRepository : IVendaRepository
         
         await _context.SaveChangesAsync(ct);
         
-        // Limpar eventos após persistir
+        //Limpar eventos após persistir
         venda.ClearDomainEvents();
     }
     

@@ -25,7 +25,7 @@ public class VendaUpdaterTests
     [Fact]
     public void AtualizarItens_AdicionandoNovoItem_DeveManterItensExistentes()
     {
-        // Arrange
+        
         var clienteId = Guid.NewGuid();
         var filialId = Guid.NewGuid();
         var produtoId1 = Guid.NewGuid();
@@ -41,10 +41,10 @@ public class VendaUpdaterTests
             new ItemVendaDto(produtoId2, 3, 50m, 0m, 150m)   // Novo
         };
 
-        // Act
+        
         var result = _updater.AtualizarItens(venda, novosItens);
 
-        // Assert
+        
         result.IsSuccess.Should().BeTrue();
         venda.Produtos.Should().HaveCount(2);
         venda.Produtos.Should().Contain(p => p.ProdutoId == produtoId1 && p.Quantidade == 2);
@@ -54,7 +54,7 @@ public class VendaUpdaterTests
     [Fact]
     public void AtualizarItens_AumentandoQuantidade_DeveAdicionarUnidades()
     {
-        // Arrange
+        
         var clienteId = Guid.NewGuid();
         var filialId = Guid.NewGuid();
         var produtoId = Guid.NewGuid();
@@ -68,10 +68,10 @@ public class VendaUpdaterTests
             new ItemVendaDto(produtoId, 5, 100m, 0m, 500m) // Aumentar de 2 para 5
         };
 
-        // Act
+        
         var result = _updater.AtualizarItens(venda, novosItens);
 
-        // Assert
+        
         result.IsSuccess.Should().BeTrue();
         venda.Produtos.Should().HaveCount(1);
         venda.Produtos.First().Quantidade.Should().Be(5);
@@ -80,7 +80,7 @@ public class VendaUpdaterTests
     [Fact]
     public void AtualizarItens_DiminuindoQuantidade_DeveRemoverUnidades()
     {
-        // Arrange
+        
         var clienteId = Guid.NewGuid();
         var filialId = Guid.NewGuid();
         var produtoId = Guid.NewGuid();
@@ -94,10 +94,10 @@ public class VendaUpdaterTests
             new ItemVendaDto(produtoId, 2, 100m, 0m, 200m) // Diminuir de 5 para 2
         };
 
-        // Act
+        
         var result = _updater.AtualizarItens(venda, novosItens);
 
-        // Assert
+        
         result.IsSuccess.Should().BeTrue();
         venda.Produtos.Should().HaveCount(1);
         venda.Produtos.First().Quantidade.Should().Be(2);
@@ -106,7 +106,7 @@ public class VendaUpdaterTests
     [Fact]
     public void AtualizarItens_RemovendoItem_DeveRemoverCompletamente()
     {
-        // Arrange
+        
         var clienteId = Guid.NewGuid();
         var filialId = Guid.NewGuid();
         var produtoId1 = Guid.NewGuid();
@@ -122,10 +122,10 @@ public class VendaUpdaterTests
             new ItemVendaDto(produtoId2, 3, 50m, 0m, 150m) // Manter apenas produtoId2
         };
 
-        // Act
+        
         var result = _updater.AtualizarItens(venda, novosItens);
 
-        // Assert
+        
         result.IsSuccess.Should().BeTrue();
         venda.Produtos.Should().HaveCount(1);
         venda.Produtos.First().ProdutoId.Should().Be(produtoId2);
@@ -134,7 +134,7 @@ public class VendaUpdaterTests
     [Fact]
     public void AtualizarItens_MantentoQuantidadeIgual_NaoDeveAlterarNada()
     {
-        // Arrange
+        
         var clienteId = Guid.NewGuid();
         var filialId = Guid.NewGuid();
         var produtoId = Guid.NewGuid();
@@ -148,10 +148,10 @@ public class VendaUpdaterTests
             new ItemVendaDto(produtoId, 3, 100m, 0m, 300m) // Mesma quantidade
         };
 
-        // Act
+        
         var result = _updater.AtualizarItens(venda, novosItens);
 
-        // Assert
+        
         result.IsSuccess.Should().BeTrue();
         venda.Produtos.Should().HaveCount(1);
         venda.Produtos.First().Quantidade.Should().Be(3);
@@ -161,7 +161,7 @@ public class VendaUpdaterTests
     [Fact]
     public void AtualizarItens_SubstituindoTodosOsItens_DeveRemoverAntigosEAdicionarNovos()
     {
-        // Arrange
+        
         var clienteId = Guid.NewGuid();
         var filialId = Guid.NewGuid();
         var produtoId1 = Guid.NewGuid();
@@ -180,10 +180,10 @@ public class VendaUpdaterTests
             new ItemVendaDto(produtoId4, 2, 120m, 0m, 240m)
         };
 
-        // Act
+        
         var result = _updater.AtualizarItens(venda, novosItens);
 
-        // Assert
+        
         result.IsSuccess.Should().BeTrue();
         venda.Produtos.Should().HaveCount(2);
         venda.Produtos.Should().Contain(p => p.ProdutoId == produtoId3);
@@ -195,7 +195,7 @@ public class VendaUpdaterTests
     [Fact]
     public void AtualizarItens_ComMaisDe20Unidades_DeveRetornarFailure()
     {
-        // Arrange
+        
         var clienteId = Guid.NewGuid();
         var filialId = Guid.NewGuid();
         var produtoId = Guid.NewGuid();
@@ -208,10 +208,10 @@ public class VendaUpdaterTests
             new ItemVendaDto(produtoId, 21, 100m, 0m, 2100m) // Mais de 20 unidades
         };
 
-        // Act
+        
         var result = _updater.AtualizarItens(venda, novosItens);
 
-        // Assert
+        
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("20 unidades");
     }

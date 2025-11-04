@@ -39,12 +39,12 @@ public class AtualizarVendaHandler : IRequestHandler<AtualizarVendaCommand, Resu
     {
         try
         {
-            // 1. Verificar idempotência
+            //Verificar idempotência
             var idempotencyResult = await VerificarIdempotencia(request.RequestId, ct);
             if (idempotencyResult != null)
                 return idempotencyResult;
 
-            // 2. Carregar venda existente
+            //Carregar venda existente
             var venda = await _vendaRepository.ObterPorIdAsync(request.VendaId, ct);
             if (venda == null)
             {
@@ -52,29 +52,29 @@ public class AtualizarVendaHandler : IRequestHandler<AtualizarVendaCommand, Resu
                 return Result<VendaDto>.Failure($"Venda {request.VendaId} não encontrada.");
             }
 
-            // 3. Atualizar itens (delegado ao VendaUpdater)
+            //Atualizar itens (delegado ao VendaUpdater)
             var updateResult = _vendaUpdater.AtualizarItens(venda, request.Itens);
             if (updateResult.IsFailure)
                 return Result<VendaDto>.Failure(updateResult.Error!);
 
-            // 4. Persistir venda atualizada
+            //Persistir venda atualizada
             await _vendaRepository.AtualizarAsync(venda, ct);
 
             _logger.LogInformation(
                 "Venda {VendaId} atualizada com sucesso. Número: {NumeroVenda}, Total de itens: {TotalItens}",
                 venda.Id, venda.NumeroVenda, venda.Produtos.Count);
 
-            // 5. Publicar eventos de domínio
+            //Publicar eventos de domínio
             await PublicarEventosDeDominio(venda, ct);
 
-            // 6. Salvar idempotência
+            //Salvar idempotência
             await _idempotencyStore.SaveAsync(
                 request.RequestId,
                 nameof(AtualizarVendaCommand),
                 venda.Id,
                 ct);
 
-            // 7. Retornar DTO
+            //Retornar DTO
             var vendaDto = MapearParaDto(venda);
             return Result<VendaDto>.Success(vendaDto);
         }

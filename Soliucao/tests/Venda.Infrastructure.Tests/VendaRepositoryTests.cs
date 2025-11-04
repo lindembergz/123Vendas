@@ -29,7 +29,7 @@ public class VendaRepositoryTests : IDisposable
     [Fact]
     public async Task AdicionarAsync_DevePersistirVendaCorretamente()
     {
-        // Arrange
+        
         var clienteId = Guid.NewGuid();
         var filialId = Guid.NewGuid();
         var politicaDesconto = new PoliticaDesconto();
@@ -37,10 +37,10 @@ public class VendaRepositoryTests : IDisposable
         var item = new ItemVenda(Guid.NewGuid(), 2, 100m);
         venda.AdicionarItem(item);
         
-        // Act
+        
         await _repository.AdicionarAsync(venda);
         
-        // Assert
+        
         var vendaSalva = await _repository.ObterPorIdAsync(venda.Id);
         vendaSalva.Should().NotBeNull();
         vendaSalva!.ClienteId.Should().Be(clienteId);
@@ -54,7 +54,7 @@ public class VendaRepositoryTests : IDisposable
     [Fact]
     public async Task ObterPorIdAsync_DeveRetornarVendaComItens()
     {
-        // Arrange
+        
         var politicaDesconto = new PoliticaDesconto();
         var venda = VendaAgregado.Criar(Guid.NewGuid(), Guid.NewGuid(), politicaDesconto);
         var item1 = new ItemVenda(Guid.NewGuid(), 3, 50m);
@@ -64,10 +64,10 @@ public class VendaRepositoryTests : IDisposable
         
         await _repository.AdicionarAsync(venda);
         
-        // Act
+        
         var vendaRecuperada = await _repository.ObterPorIdAsync(venda.Id);
         
-        // Assert
+        
         vendaRecuperada.Should().NotBeNull();
         vendaRecuperada!.Produtos.Should().HaveCount(2);
         vendaRecuperada.ValorTotal.Should().Be(300m); // (3 * 50) + (1 * 150)
@@ -76,7 +76,7 @@ public class VendaRepositoryTests : IDisposable
     [Fact]
     public async Task ListarAsync_DeveRetornarTodasVendas()
     {
-        // Arrange
+        
         var politicaDesconto = new PoliticaDesconto();
         var venda1 = VendaAgregado.Criar(Guid.NewGuid(), Guid.NewGuid(), politicaDesconto);
         var venda2 = VendaAgregado.Criar(Guid.NewGuid(), Guid.NewGuid(), politicaDesconto);
@@ -86,10 +86,10 @@ public class VendaRepositoryTests : IDisposable
         await _repository.AdicionarAsync(venda2);
         await _repository.AdicionarAsync(venda3);
         
-        // Act
+        
         var vendas = await _repository.ListarAsync();
         
-        // Assert
+        
         vendas.Should().HaveCount(3);
         vendas.Should().Contain(v => v.Id == venda1.Id);
         vendas.Should().Contain(v => v.Id == venda2.Id);
@@ -99,7 +99,7 @@ public class VendaRepositoryTests : IDisposable
     [Fact]
     public async Task AtualizarAsync_DeveModificarVenda()
     {
-        // Arrange
+        
         var politicaDesconto = new PoliticaDesconto();
         var venda = VendaAgregado.Criar(Guid.NewGuid(), Guid.NewGuid(), politicaDesconto);
         var item = new ItemVenda(Guid.NewGuid(), 1, 100m);
@@ -107,12 +107,12 @@ public class VendaRepositoryTests : IDisposable
         
         await _repository.AdicionarAsync(venda);
         
-        // Act - Adicionar mais um item
+         - Adicionar mais um item
         var novoItem = new ItemVenda(Guid.NewGuid(), 2, 75m);
         venda.AdicionarItem(novoItem);
         await _repository.AtualizarAsync(venda);
         
-        // Assert
+        
         var vendaAtualizada = await _repository.ObterPorIdAsync(venda.Id);
         vendaAtualizada.Should().NotBeNull();
         vendaAtualizada!.Produtos.Should().HaveCount(2);
@@ -122,28 +122,28 @@ public class VendaRepositoryTests : IDisposable
     [Fact]
     public async Task ExisteAsync_DeveRetornarTrueQuandoVendaExiste()
     {
-        // Arrange
+        
         var politicaDesconto = new PoliticaDesconto();
         var venda = VendaAgregado.Criar(Guid.NewGuid(), Guid.NewGuid(), politicaDesconto);
         await _repository.AdicionarAsync(venda);
         
-        // Act
+        
         var existe = await _repository.ExisteAsync(venda.Id);
         
-        // Assert
+        
         existe.Should().BeTrue();
     }
     
     [Fact]
     public async Task ExisteAsync_DeveRetornarFalseQuandoVendaNaoExiste()
     {
-        // Arrange
+        
         var idInexistente = Guid.NewGuid();
         
-        // Act
+        
         var existe = await _repository.ExisteAsync(idInexistente);
         
-        // Assert
+        
         existe.Should().BeFalse();
     }
     

@@ -12,8 +12,8 @@ public class VendaDbContextFactory : IDesignTimeDbContextFactory<VendaDbContext>
     {
         var optionsBuilder = new DbContextOptionsBuilder<VendaDbContext>();
         
-        // Configuração para migrations (usa SQLite na pasta da API)
-        // Caminho relativo a partir da pasta Venda.Infrastructure até a API
+        //Configuração para migrations (usa SQLite na pasta da API)
+        //Caminho relativo a partir da pasta Venda.Infrastructure até a API
         var dbPath = Path.Combine("..", "..", "..", "123Vendas.Api", "vendas.db");
         optionsBuilder.UseSqlite($"Data Source={dbPath}", sqliteOptions =>
         {

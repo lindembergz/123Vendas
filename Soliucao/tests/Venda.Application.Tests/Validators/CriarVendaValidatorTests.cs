@@ -18,7 +18,7 @@ public class CriarVendaValidatorTests
     [Fact]
     public void Validacao_ComDadosValidos_DevePassar()
     {
-        // Arrange
+        
         var command = new CriarVendaCommand(
             RequestId: Guid.NewGuid(),
             ClienteId: Guid.NewGuid(),
@@ -29,10 +29,10 @@ public class CriarVendaValidatorTests
             }
         );
 
-        // Act
+        
         var result = _validator.Validate(command);
 
-        // Assert
+        
         result.IsValid.Should().BeTrue();
         result.Errors.Should().BeEmpty();
     }
@@ -40,7 +40,7 @@ public class CriarVendaValidatorTests
     [Fact]
     public void Validacao_ComRequestIdVazio_DeveFalhar()
     {
-        // Arrange
+        
         var command = new CriarVendaCommand(
             RequestId: Guid.Empty,
             ClienteId: Guid.NewGuid(),
@@ -51,10 +51,10 @@ public class CriarVendaValidatorTests
             }
         );
 
-        // Act
+        
         var result = _validator.Validate(command);
 
-        // Assert
+        
         result.IsValid.Should().BeFalse();
         result.Errors.Should().ContainSingle(e => e.PropertyName == "RequestId");
         result.Errors.First(e => e.PropertyName == "RequestId")
@@ -64,7 +64,7 @@ public class CriarVendaValidatorTests
     [Fact]
     public void Validacao_ComClienteIdVazio_DeveFalhar()
     {
-        // Arrange
+        
         var command = new CriarVendaCommand(
             RequestId: Guid.NewGuid(),
             ClienteId: Guid.Empty,
@@ -75,10 +75,10 @@ public class CriarVendaValidatorTests
             }
         );
 
-        // Act
+        
         var result = _validator.Validate(command);
 
-        // Assert
+        
         result.IsValid.Should().BeFalse();
         result.Errors.Should().ContainSingle(e => e.PropertyName == "ClienteId");
         result.Errors.First(e => e.PropertyName == "ClienteId")
@@ -88,7 +88,7 @@ public class CriarVendaValidatorTests
     [Fact]
     public void Validacao_ComFilialIdVazia_DeveFalhar()
     {
-        // Arrange
+        
         var command = new CriarVendaCommand(
             RequestId: Guid.NewGuid(),
             ClienteId: Guid.NewGuid(),
@@ -99,10 +99,10 @@ public class CriarVendaValidatorTests
             }
         );
 
-        // Act
+        
         var result = _validator.Validate(command);
 
-        // Assert
+        
         result.IsValid.Should().BeFalse();
         result.Errors.Should().ContainSingle(e => e.PropertyName == "FilialId");
         result.Errors.First(e => e.PropertyName == "FilialId")
@@ -112,7 +112,7 @@ public class CriarVendaValidatorTests
     [Fact]
     public void Validacao_ComListaDeItensVazia_DeveFalhar()
     {
-        // Arrange
+        
         var command = new CriarVendaCommand(
             RequestId: Guid.NewGuid(),
             ClienteId: Guid.NewGuid(),
@@ -120,10 +120,10 @@ public class CriarVendaValidatorTests
             Itens: new List<ItemVendaDto>()
         );
 
-        // Act
+        
         var result = _validator.Validate(command);
 
-        // Assert
+        
         result.IsValid.Should().BeFalse();
         result.Errors.Should().ContainSingle(e => e.PropertyName == "Itens");
         result.Errors.First(e => e.PropertyName == "Itens")
@@ -133,7 +133,7 @@ public class CriarVendaValidatorTests
     [Fact]
     public void Validacao_ComMaisDe100Itens_DeveFalhar()
     {
-        // Arrange
+        
         var itens = Enumerable.Range(1, 101)
             .Select(_ => new ItemVendaDto(Guid.NewGuid(), 1, 100m, 0m, 100m))
             .ToList();
@@ -145,10 +145,10 @@ public class CriarVendaValidatorTests
             Itens: itens
         );
 
-        // Act
+        
         var result = _validator.Validate(command);
 
-        // Assert
+        
         result.IsValid.Should().BeFalse();
         result.Errors.Should().ContainSingle(e => e.PropertyName == "Itens");
         result.Errors.First(e => e.PropertyName == "Itens")
@@ -158,7 +158,7 @@ public class CriarVendaValidatorTests
     [Fact]
     public void Validacao_ComItemSemProdutoId_DeveFalhar()
     {
-        // Arrange
+        
         var command = new CriarVendaCommand(
             RequestId: Guid.NewGuid(),
             ClienteId: Guid.NewGuid(),
@@ -169,10 +169,10 @@ public class CriarVendaValidatorTests
             }
         );
 
-        // Act
+        
         var result = _validator.Validate(command);
 
-        // Assert
+        
         result.IsValid.Should().BeFalse();
         result.Errors.Should().ContainSingle(e => e.PropertyName == "Itens[0].ProdutoId");
         result.Errors.First(e => e.PropertyName == "Itens[0].ProdutoId")
@@ -182,7 +182,7 @@ public class CriarVendaValidatorTests
     [Fact]
     public void Validacao_ComQuantidadeZero_DeveFalhar()
     {
-        // Arrange
+        
         var command = new CriarVendaCommand(
             RequestId: Guid.NewGuid(),
             ClienteId: Guid.NewGuid(),
@@ -193,10 +193,10 @@ public class CriarVendaValidatorTests
             }
         );
 
-        // Act
+        
         var result = _validator.Validate(command);
 
-        // Assert
+        
         result.IsValid.Should().BeFalse();
         result.Errors.Should().ContainSingle(e => e.PropertyName == "Itens[0].Quantidade");
         result.Errors.First(e => e.PropertyName == "Itens[0].Quantidade")
@@ -206,7 +206,7 @@ public class CriarVendaValidatorTests
     [Fact]
     public void Validacao_ComValorUnitarioZero_DeveFalhar()
     {
-        // Arrange
+        
         var command = new CriarVendaCommand(
             RequestId: Guid.NewGuid(),
             ClienteId: Guid.NewGuid(),
@@ -217,10 +217,10 @@ public class CriarVendaValidatorTests
             }
         );
 
-        // Act
+        
         var result = _validator.Validate(command);
 
-        // Assert
+        
         result.IsValid.Should().BeFalse();
         result.Errors.Should().ContainSingle(e => e.PropertyName == "Itens[0].ValorUnitario");
         result.Errors.First(e => e.PropertyName == "Itens[0].ValorUnitario")
@@ -230,7 +230,7 @@ public class CriarVendaValidatorTests
     [Fact]
     public void Validacao_ComMultiplosErros_DeveRetornarTodos()
     {
-        // Arrange
+        
         var command = new CriarVendaCommand(
             RequestId: Guid.Empty,
             ClienteId: Guid.Empty,
@@ -238,10 +238,10 @@ public class CriarVendaValidatorTests
             Itens: new List<ItemVendaDto>()
         );
 
-        // Act
+        
         var result = _validator.Validate(command);
 
-        // Assert
+        
         result.IsValid.Should().BeFalse();
         result.Errors.Should().HaveCount(4);
         result.Errors.Should().Contain(e => e.PropertyName == "RequestId");

@@ -25,14 +25,14 @@ public class OutboxServiceTests : IDisposable
     [Fact]
     public async Task AdicionarEventoAsync_DeveSalvarEventoComStatusPending()
     {
-        // Arrange
+        
         var evento = new CompraCriada(Guid.NewGuid(), 1, Guid.NewGuid());
         
-        // Act
+        
         await _outboxService.AdicionarEventoAsync(evento);
         await _context.SaveChangesAsync(); // Simula SaveChanges do repositório
         
-        // Assert
+        
         var eventosSalvos = await _context.OutboxEvents.ToListAsync();
         eventosSalvos.Should().HaveCount(1);
         
@@ -47,7 +47,7 @@ public class OutboxServiceTests : IDisposable
     [Fact]
     public async Task ObterEventosPendentesAsync_DeveRetornarApenasEventosPending()
     {
-        // Arrange
+        
         var evento1 = new CompraCriada(Guid.NewGuid(), 1, Guid.NewGuid());
         var evento2 = new CompraCriada(Guid.NewGuid(), 2, Guid.NewGuid());
         var evento3 = new CompraCriada(Guid.NewGuid(), 3, Guid.NewGuid());
@@ -62,10 +62,10 @@ public class OutboxServiceTests : IDisposable
         eventos[1].Status = "Processed";
         await _context.SaveChangesAsync();
         
-        // Act
+        
         var eventosPendentes = await _outboxService.ObterEventosPendentesAsync();
         
-        // Assert
+        
         eventosPendentes.Should().HaveCount(2);
         eventosPendentes.Should().OnlyContain(e => e.Status == "Pending");
     }
@@ -73,7 +73,7 @@ public class OutboxServiceTests : IDisposable
     [Fact]
     public async Task ObterEventosPendentesAsync_NaoDeveRetornarEventosComRetryCountMaiorOuIgualA5()
     {
-        // Arrange
+        
         var evento1 = new CompraCriada(Guid.NewGuid(), 1, Guid.NewGuid());
         var evento2 = new CompraCriada(Guid.NewGuid(), 2, Guid.NewGuid());
         
@@ -86,10 +86,10 @@ public class OutboxServiceTests : IDisposable
         eventos[0].RetryCount = 5;
         await _context.SaveChangesAsync();
         
-        // Act
+        
         var eventosPendentes = await _outboxService.ObterEventosPendentesAsync();
         
-        // Assert
+        
         eventosPendentes.Should().HaveCount(1);
         eventosPendentes[0].RetryCount.Should().BeLessThan(5);
     }
@@ -97,7 +97,7 @@ public class OutboxServiceTests : IDisposable
     [Fact]
     public async Task ObterEventosPendentesAsync_DeveRespeitarBatchSize()
     {
-        // Arrange
+        
         for (int i = 0; i < 10; i++)
         {
             var evento = new CompraCriada(Guid.NewGuid(), i + 1, Guid.NewGuid());
@@ -105,17 +105,17 @@ public class OutboxServiceTests : IDisposable
         }
         await _context.SaveChangesAsync();
         
-        // Act
+        
         var eventosPendentes = await _outboxService.ObterEventosPendentesAsync(batchSize: 5);
         
-        // Assert
+        
         eventosPendentes.Should().HaveCount(5);
     }
     
     [Fact]
     public async Task MarcarComoProcessadoAsync_DeveAtualizarStatusEProcessedAt()
     {
-        // Arrange
+        
         var evento = new CompraCriada(Guid.NewGuid(), 1, Guid.NewGuid());
         await _outboxService.AdicionarEventoAsync(evento);
         await _context.SaveChangesAsync();
@@ -123,10 +123,10 @@ public class OutboxServiceTests : IDisposable
         var eventoSalvo = await _context.OutboxEvents.FirstAsync();
         var eventoId = eventoSalvo.Id;
         
-        // Act
+        
         await _outboxService.MarcarComoProcessadoAsync(eventoId);
         
-        // Assert
+        
         var eventoAtualizado = await _context.OutboxEvents.FindAsync(eventoId);
         eventoAtualizado.Should().NotBeNull();
         eventoAtualizado!.Status.Should().Be("Processed");
@@ -137,7 +137,7 @@ public class OutboxServiceTests : IDisposable
     [Fact]
     public async Task MarcarComoFalhadoAsync_DeveIncrementarRetryCountEAtualizarStatus()
     {
-        // Arrange
+        
         var evento = new CompraCriada(Guid.NewGuid(), 1, Guid.NewGuid());
         await _outboxService.AdicionarEventoAsync(evento);
         await _context.SaveChangesAsync();
@@ -146,10 +146,10 @@ public class OutboxServiceTests : IDisposable
         var eventoId = eventoSalvo.Id;
         var mensagemErro = "Erro ao processar evento de teste";
         
-        // Act
+        
         await _outboxService.MarcarComoFalhadoAsync(eventoId, mensagemErro);
         
-        // Assert
+        
         var eventoAtualizado = await _context.OutboxEvents.FindAsync(eventoId);
         eventoAtualizado.Should().NotBeNull();
         eventoAtualizado!.Status.Should().Be("Failed");
@@ -160,7 +160,7 @@ public class OutboxServiceTests : IDisposable
     [Fact]
     public async Task MarcarComoFalhadoAsync_DeveIncrementarRetryCountMultiplasVezes()
     {
-        // Arrange
+        
         var evento = new CompraCriada(Guid.NewGuid(), 1, Guid.NewGuid());
         await _outboxService.AdicionarEventoAsync(evento);
         await _context.SaveChangesAsync();
@@ -168,12 +168,12 @@ public class OutboxServiceTests : IDisposable
         var eventoSalvo = await _context.OutboxEvents.FirstAsync();
         var eventoId = eventoSalvo.Id;
         
-        // Act - Marcar como falhado 3 vezes
+         - Marcar como falhado 3 vezes
         await _outboxService.MarcarComoFalhadoAsync(eventoId, "Erro 1");
         await _outboxService.MarcarComoFalhadoAsync(eventoId, "Erro 2");
         await _outboxService.MarcarComoFalhadoAsync(eventoId, "Erro 3");
         
-        // Assert
+        
         var eventoAtualizado = await _context.OutboxEvents.FindAsync(eventoId);
         eventoAtualizado.Should().NotBeNull();
         eventoAtualizado!.RetryCount.Should().Be(3);

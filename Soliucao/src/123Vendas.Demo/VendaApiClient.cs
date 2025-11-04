@@ -26,10 +26,29 @@ public class VendaApiClient
             
             if (!response.IsSuccessStatusCode)
             {
-                var errorContent = await response.Content.ReadAsStringAsync();
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"❌ Erro ao criar venda: {response.StatusCode}");
-                Console.WriteLine($"   Detalhes: {errorContent}");
+                Console.WriteLine($"\n❌ Erro ao criar venda (Status {(int)response.StatusCode}):");
+                
+                // Tentar extrair a mensagem de erro do ProblemDetails
+                try
+                {
+                    var problemDetails = await response.Content.ReadFromJsonAsync<ProblemDetailsResponse>();
+                    if (problemDetails?.Detail != null)
+                    {
+                        Console.WriteLine($"   {problemDetails.Detail}\n");
+                    }
+                    else
+                    {
+                        var errorContent = await response.Content.ReadAsStringAsync();
+                        Console.WriteLine($"   {errorContent}\n");
+                    }
+                }
+                catch
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    Console.WriteLine($"   {errorContent}\n");
+                }
+                
                 Console.ResetColor();
                 return null;
             }
@@ -52,7 +71,7 @@ public class VendaApiClient
         catch (HttpRequestException ex)
         {
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"❌ Erro ao criar venda: {ex.Message}");
+            Console.WriteLine($"❌ Erro de conexão ao criar venda: {ex.Message}");
             Console.ResetColor();
             return null;
         }

@@ -17,6 +17,6 @@ public record CompraCriada : DomainEvent
         ClienteId = clienteId;
     }
 
-    // Construtor para desserialização
+    //Construtor para desserialização
     private CompraCriada() { }
 }

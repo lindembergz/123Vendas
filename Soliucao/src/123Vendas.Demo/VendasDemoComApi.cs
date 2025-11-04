@@ -165,11 +165,27 @@ namespace _123Vendas.Demo
                     produtosAdicionados[nome.ToLower()] = (produtoId, valor);
                 }
 
-                Console.Write("🔢 Quantidade: ");
-                if (!int.TryParse(Console.ReadLine(), out var qtd) || qtd <= 0)
+                int qtd;
+                while (true)
                 {
-                    ConsoleUIHelper.MostrarMensagemErro("Quantidade inválida!");
-                    continue;
+                    Console.Write("🔢 Quantidade: ");
+                    if (!int.TryParse(Console.ReadLine(), out qtd) || qtd <= 0)
+                    {
+                        ConsoleUIHelper.MostrarMensagemErro("Quantidade inválida!");
+                        continue;
+                    }
+
+                    // Validar regra de negócio: máximo 20 unidades
+                    if (qtd > 20)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine("   ❌ Não é permitido vender mais de 20 unidades do mesmo produto.");
+                        Console.ResetColor();
+                        Console.WriteLine("   💡 Digite uma quantidade entre 1 e 20.\n");
+                        continue;
+                    }
+
+                    break; // Quantidade válida
                 }
 
                 var desconto = CalcularDesconto(qtd);
@@ -507,7 +523,7 @@ namespace _123Vendas.Demo
                     novoTotal
                 );
                 
-                ConsoleUIHelper.MostrarMensagemSucesso($"{quantidade} unidade(s) removida(s). Restam {novaQuantidade} unidade(s).");
+                ConsoleUIHelper.MostrarMensagemSucesso($"{quantidade} unidade(s) removida(s). Restam {novaQuantidade} unidade(s). [S] Para salvar!");
             }
         }
 

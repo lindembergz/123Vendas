@@ -21,25 +21,25 @@ public class VendaUpdater
 
     /// <summary>
     /// Atualiza os itens de uma venda de forma inteligente:
-    /// - Consolida itens duplicados (mesmo ProdutoId) somando suas quantidades
-    /// - Remove itens que não estão mais na lista
-    /// - Adiciona novos itens
-    /// - Ajusta quantidades de itens existentes
-    /// </summary>
+    /// -Consolida itens duplicados (mesmo ProdutoId) somando suas quantidades
+    /// -Remove itens que não estão mais na lista
+    /// -Adiciona novos itens
+    /// -Ajusta quantidades de itens existentes
+    /// <summary>
     public Result AtualizarItens(VendaAgregado venda, IReadOnlyList<ItemVendaDto> itensDto)
     {
-        // 0. Consolidar itens duplicados antes de processar (Requisito 5.3)
+        //Consolidar itens duplicados antes de processar 
         var itensConsolidados = ConsolidarItensDuplicados(itensDto);
         
         var produtosNovos = itensConsolidados.Select(i => i.ProdutoId).ToHashSet();
         var produtosExistentes = venda.Produtos.Select(p => p.ProdutoId).ToHashSet();
 
-        // 1. Remover itens que não estão mais na lista
+        //Remover itens que não estão mais na lista
         var result = RemoverItensAusentes(venda, produtosExistentes, produtosNovos);
         if (result.IsFailure)
             return result;
 
-        // 2. Atualizar ou adicionar itens
+        //Atualizar ou adicionar itens
         foreach (var itemDto in itensConsolidados)
         {
             result = AtualizarOuAdicionarItem(venda, itemDto);
@@ -51,8 +51,7 @@ public class VendaUpdater
     }
 
     /// <summary>
-    /// Consolida itens com o mesmo ProdutoId, somando suas quantidades.
-    /// Atende ao requisito 5.3: itens duplicados devem ser consolidados em uma única linha.
+    ///Consolida itens com o mesmo ProdutoId, somando suas quantidades.
     /// </summary>
     private List<ItemVendaDto> ConsolidarItensDuplicados(IReadOnlyList<ItemVendaDto> itensDto)
     {
@@ -61,13 +60,12 @@ public class VendaUpdater
             .Select(g => new ItemVendaDto(
                 ProdutoId: g.Key,
                 Quantidade: g.Sum(x => x.Quantidade),
-                ValorUnitario: g.First().ValorUnitario, // Usa o valor unitário do primeiro item
-                Desconto: 0m, // Desconto será recalculado pelo agregado
-                Total: 0m // Total será recalculado pelo agregado
+                ValorUnitario: g.First().ValorUnitario, //Usa o valor unitário do primeiro item
+                Desconto: 0m, //Desconto será recalculado pelo agregado
+                Total: 0m //Total será recalculado pelo agregado
             ))
             .ToList();
 
-        // Log se houver consolidação
         if (itensConsolidados.Count < itensDto.Count)
         {
             _logger.LogInformation(
@@ -110,11 +108,9 @@ public class VendaUpdater
 
         if (itemExistente == null)
         {
-            // Item novo: adicionar
+
             return AdicionarNovoItem(venda, itemDto);
         }
-
-        // Item existente: ajustar quantidade
         return AjustarQuantidadeItem(venda, itemDto, itemExistente);
     }
 
@@ -124,7 +120,7 @@ public class VendaUpdater
             itemDto.ProdutoId,
             itemDto.Quantidade,
             itemDto.ValorUnitario,
-            0m); // Desconto será calculado pelo agregado
+            0m); //Desconto será calculado pelo agregado
 
         var result = venda.AdicionarItem(item);
         
@@ -153,17 +149,17 @@ public class VendaUpdater
 
         if (diferenca == 0)
         {
-            // Quantidade não mudou: nada a fazer
+            //Quantidade não mudou: nada a fazer
             return Result.Success();
         }
 
         if (diferenca > 0)
         {
-            // Aumentar quantidade: adicionar mais unidades
+            //Aumentar quantidade: adicionar mais unidades
             return AdicionarUnidades(venda, itemDto, diferenca);
         }
 
-        // Diminuir quantidade: remover unidades
+        //Diminuir quantidade: remover unidades
         return RemoverUnidades(venda, itemDto, Math.Abs(diferenca));
     }
 

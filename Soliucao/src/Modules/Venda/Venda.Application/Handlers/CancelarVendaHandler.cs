@@ -28,7 +28,7 @@ public class CancelarVendaHandler : IRequestHandler<CancelarVendaCommand, Result
 
     public async Task<Result> Handle(CancelarVendaCommand request, CancellationToken ct)
     {
-        // 1. Verificar idempotência
+        //Verificar idempotência
         if (await _idempotencyStore.ExistsAsync(request.RequestId, ct))
         {
             _logger.LogInformation(
@@ -37,7 +37,7 @@ public class CancelarVendaHandler : IRequestHandler<CancelarVendaCommand, Result
             return Result.Success();
         }
 
-        // 2. Carregar venda
+        //Carregar venda
         var venda = await _vendaRepository.ObterPorIdAsync(request.VendaId, ct);
         if (venda == null)
         {
@@ -47,7 +47,7 @@ public class CancelarVendaHandler : IRequestHandler<CancelarVendaCommand, Result
             return Result.Failure($"Venda {request.VendaId} não encontrada.");
         }
 
-        // 3. Cancelar venda (aplica regra de negócio)
+        //Cancelar venda (aplica regra de negócio)
         var resultado = venda.Cancelar();
         if (resultado.IsFailure)
         {
@@ -57,14 +57,14 @@ public class CancelarVendaHandler : IRequestHandler<CancelarVendaCommand, Result
             return resultado;
         }
 
-        // 4. Persistir alterações (que salva eventos no outbox)
+        //Persistir alterações (que salva eventos no outbox)
         await _vendaRepository.AtualizarAsync(venda, ct);
 
         _logger.LogInformation(
             "Venda {VendaId} (Número: {NumeroVenda}) cancelada com sucesso",
             venda.Id, venda.NumeroVenda);
 
-        // 5. Publicar eventos de domínio via MediatR
+        //Publicar eventos de domínio via MediatR
         foreach (var domainEvent in venda.DomainEvents)
         {
             await _mediator.Publish(domainEvent, ct);
@@ -72,7 +72,7 @@ public class CancelarVendaHandler : IRequestHandler<CancelarVendaCommand, Result
 
         venda.ClearDomainEvents();
 
-        // 6. Salvar RequestId no IdempotencyStore
+        //Salvar RequestId no IdempotencyStore
         await _idempotencyStore.SaveAsync(
             request.RequestId,
             nameof(CancelarVendaCommand),

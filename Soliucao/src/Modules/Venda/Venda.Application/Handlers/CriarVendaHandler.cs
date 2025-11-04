@@ -37,7 +37,7 @@ public class CriarVendaHandler : IRequestHandler<CriarVendaCommand, Result<Guid>
 
     public async Task<Result<Guid>> Handle(CriarVendaCommand request, CancellationToken ct)
     {
-        // 1. Verificar idempotência
+        //Verificar idempotência
         if (await _idempotencyStore.ExistsAsync(request.RequestId, ct))
         {
             var aggregateId = await _idempotencyStore.GetAggregateIdAsync(request.RequestId, ct);
@@ -50,44 +50,34 @@ public class CriarVendaHandler : IRequestHandler<CriarVendaCommand, Result<Guid>
             }
         }
 
-        // 2. Validar cliente via IClienteService com fallback
-        bool clienteValido = false;
+        //Validar cliente via IClienteService
         try
         {
-            clienteValido = await _clienteService.ClienteExisteAsync(request.ClienteId, ct);
+            var clienteValido = await _clienteService.ClienteExisteAsync(request.ClienteId, ct);
             
             if (!clienteValido)
             {
-                _logger.LogWarning(
-                    "Cliente {ClienteId} não encontrado no CRM. Criando venda com status PendenteValidacao",
-                    request.ClienteId);
+                _logger.LogWarning("Cliente {ClienteId} não encontrado no CRM", request.ClienteId);
+                return Result<Guid>.Failure($"Cliente {request.ClienteId} não encontrado.");
             }
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex,
-                "Erro ao validar cliente {ClienteId} no CRM. Aplicando fallback: criando venda com status PendenteValidacao",
-                request.ClienteId);
-            clienteValido = false;
+            _logger.LogError(ex, "Erro ao validar cliente {ClienteId} no CRM", request.ClienteId);
+            return Result<Guid>.Failure("Serviço de validação de cliente indisponível. Tente novamente mais tarde.");
         }
 
-        // 3. Criar VendaAgregado com injeção da política de desconto
+        //Criar VendaAgregado com injeção da política de desconto
         var venda = VendaAgregado.Criar(request.ClienteId, request.FilialId, _politicaDesconto);
 
-        // Se cliente não foi validado, marcar como pendente
-        if (!clienteValido)
-        {
-            venda.MarcarComoPendenteValidacao();
-        }
-
-        // 4. Adicionar itens
+        //Adicionar itens
         foreach (var itemDto in request.Itens)
         {
             var item = new ItemVenda(
                 itemDto.ProdutoId,
                 itemDto.Quantidade,
                 itemDto.ValorUnitario,
-                0m); // Desconto será calculado pelo agregado
+                0m); //Desconto será calculado pelo agregado
 
             var resultado = venda.AdicionarItem(item);
             if (resultado.IsFailure)
@@ -99,14 +89,14 @@ public class CriarVendaHandler : IRequestHandler<CriarVendaCommand, Result<Guid>
             }
         }
 
-        // 5. Persistir venda (que salva eventos no outbox)
+        //Persistir venda (que salva eventos no outbox)
         await _vendaRepository.AdicionarAsync(venda, ct);
 
         _logger.LogInformation(
             "Venda {VendaId} criada com sucesso. Número: {NumeroVenda}, Cliente: {ClienteId}, Status: {Status}",
             venda.Id, venda.NumeroVenda, venda.ClienteId, venda.Status);
 
-        // 6. Publicar eventos de domínio via MediatR
+        //Publicar eventos de domínio via MediatR
         foreach (var domainEvent in venda.DomainEvents)
         {
             await _mediator.Publish(domainEvent, ct);
@@ -114,7 +104,7 @@ public class CriarVendaHandler : IRequestHandler<CriarVendaCommand, Result<Guid>
 
         venda.ClearDomainEvents();
 
-        // 7. Salvar RequestId no IdempotencyStore
+        //Salvar RequestId no IdempotencyStore
         await _idempotencyStore.SaveAsync(
             request.RequestId,
             nameof(CriarVendaCommand),

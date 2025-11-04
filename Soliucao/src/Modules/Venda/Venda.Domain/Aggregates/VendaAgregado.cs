@@ -34,10 +34,10 @@ public class VendaAgregado : IAggregateRoot
         _politicaDesconto = politicaDesconto ?? throw new ArgumentNullException(nameof(politicaDesconto));
     }
     
-    // Construtor privado para EF Core
+    //Construtor privado para EF Core
     private VendaAgregado() : this(new PoliticaDesconto()) 
     {
-        // EF Core usa este construtor
+        //EF Core usa este construtor
     }
     
     public static VendaAgregado Criar(Guid clienteId, Guid filialId, IPoliticaDesconto politicaDesconto)
@@ -52,10 +52,10 @@ public class VendaAgregado : IAggregateRoot
         {
             ClienteId = clienteId,
             FilialId = filialId,
-            NumeroVenda = 0 // Será definido pelo repositório após persistência
+            NumeroVenda = 0 //Será definido pelo repositório após persistência
         };
         
-        // Evento será adicionado após definir NumeroVenda no repositório
+        //Evento será adicionado após definir NumeroVenda no repositório
         return venda;
     }
     
@@ -82,18 +82,18 @@ public class VendaAgregado : IAggregateRoot
         var quantidadeExistente = ObterQuantidadeTotalPorProduto(item.ProdutoId);
         var quantidadeTotal = quantidadeExistente + item.Quantidade;
         
-        // Valida usando a política de desconto centralizada
+        //Valida usando a política de desconto centralizada
         if (!_politicaDesconto.PermiteVenda(quantidadeTotal))
             return Result.Failure("Não é permitido vender mais de 20 unidades do mesmo produto.");
         
-        // Calcula desconto usando a política centralizada
+        //Calcula desconto usando a política centralizada
         var desconto = _politicaDesconto.Calcular(quantidadeTotal);
         
-        // Consolida itens do mesmo produto em uma única linha
+        //Consolida itens do mesmo produto em uma única linha
         var itemExistente = _produtos.FirstOrDefault(i => i.ProdutoId == item.ProdutoId);
         if (itemExistente != null)
         {
-            // Remove o item existente e adiciona com quantidade e desconto atualizados
+            //Remove o item existente e adiciona com quantidade e desconto atualizados
             _produtos.Remove(itemExistente);
             var itemConsolidado = new ItemVenda(
                 item.ProdutoId,
@@ -105,7 +105,7 @@ public class VendaAgregado : IAggregateRoot
         }
         else
         {
-            // Novo produto: adiciona com desconto calculado
+            //Novo produto: adiciona com desconto calculado
             var itemComDesconto = new ItemVenda(
                 item.ProdutoId,
                 item.Quantidade,
@@ -115,7 +115,7 @@ public class VendaAgregado : IAggregateRoot
             _produtos.Add(itemComDesconto);
         }
         
-        // Adiciona evento de alteração
+        //Adiciona evento de alteração
         AddDomainEvent(new CompraAlterada(Id, new[] { item.ProdutoId }));
         
         return Result.Success();
@@ -151,13 +151,13 @@ public class VendaAgregado : IAggregateRoot
         
         if (novaQuantidade == 0)
         {
-            // Remove o item completamente
+            //Remove o item completamente
             _produtos.Remove(item);
             AddDomainEvent(new ItemCancelado(Id, produtoId));
         }
         else
         {
-            // Atualiza a quantidade e recalcula o desconto
+            //Atualiza a quantidade e recalcula o desconto
             var novoDesconto = _politicaDesconto.Calcular(novaQuantidade);
             _produtos.Remove(item);
             _produtos.Add(new ItemVenda(
@@ -174,7 +174,7 @@ public class VendaAgregado : IAggregateRoot
     
     public Result RemoverItem(Guid produtoId)
     {
-        // Remove o item completamente (todas as quantidades)
+        //Remove o item completamente (todas as quantidades)
         if (Status == StatusVenda.Cancelada)
             return Result.Failure("Não é possível remover itens de uma venda cancelada.");
         
@@ -188,29 +188,12 @@ public class VendaAgregado : IAggregateRoot
         return Result.Success();
     }
     
-    public void MarcarComoPendenteValidacao()
-    {
-        Status = StatusVenda.PendenteValidacao;
-    }
-    
-    public Result Confirmar()
-    {
-        if (Status == StatusVenda.Cancelada)
-            return Result.Failure("Não é possível confirmar uma venda cancelada.");
-        
-        if (Status == StatusVenda.Ativa)
-            return Result.Failure("Venda já está ativa.");
-        
-        Status = StatusVenda.Ativa;
-        AddDomainEvent(new CompraAlterada(Id, _produtos.Select(p => p.ProdutoId).ToArray()));
-        
-        return Result.Success();
-    }
+
     
     private void RecalcularTodosOsDescontos()
     {
-        // Recalcula descontos para todos os produtos
-        // Nota: Cada produto deve ter apenas UMA linha na lista
+        //Recalcula descontos para todos os produtos
+        //Nota: Cada produto deve ter apenas UMA linha na lista
         for (int i = 0; i < _produtos.Count; i++)
         {
             var item = _produtos[i];

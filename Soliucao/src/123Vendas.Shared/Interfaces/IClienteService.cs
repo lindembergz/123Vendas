@@ -10,17 +10,11 @@ namespace _123Vendas.Shared.Interfaces;
 //Em um cenário de produção com microserviços, cada módulo exporia sua própria
 //interface e a comunicação seria via HTTP/gRPC ou mensageria.
 //
-//Para um monolito modular como este, ambas abordagens são válidas:
+//Para um monolito modular como este, um teste, ambas abordagens são válidas:
 //- Shared: Simplicidade, contratos compartilhados
 //- Por módulo: Maior autonomia, melhor para evolução independente
 ///</summary>
 public interface IClienteService
 {
-    /// <summary>
-    /// Verifica se um cliente existe no sistema de CRM
-    /// </summary>
-    /// <param name="clienteId">ID do cliente a ser verificado</param>
-    /// <param name="ct">Token de cancelamento</param>
-    /// <returns>True se o cliente existe, False caso contrário</returns>
     Task<bool> ClienteExisteAsync(Guid clienteId, CancellationToken ct = default);
 }

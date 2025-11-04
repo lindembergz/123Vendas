@@ -30,15 +30,15 @@ public class AtualizarVendaIntegrationTests : IClassFixture<CustomWebApplication
     [Fact]
     public async Task Put_VendaAtiva_DeveRetornar200EAtualizarDados()
     {
-        // Arrange
+        
         var vendaId = await CriarVendaHelper();
         var novosItens = _builder.GerarItens(2);
         var request = new AtualizarVendaRequest(novosItens);
 
-        // Act
+        
         var response = await _client.PutAsJsonAsync($"/api/v1/vendas/{vendaId}", request);
 
-        // Assert
+        
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         
         var venda = await response.Content.ReadFromJsonAsync<VendaDto>();
@@ -51,7 +51,7 @@ public class AtualizarVendaIntegrationTests : IClassFixture<CustomWebApplication
     [Fact]
     public async Task Put_VendaCancelada_DeveRetornar400()
     {
-        // Arrange
+        
         var vendaId = await CriarVendaHelper();
         
         // Cancelar a venda
@@ -61,10 +61,10 @@ public class AtualizarVendaIntegrationTests : IClassFixture<CustomWebApplication
         var novosItens = _builder.GerarItens(1);
         var request = new AtualizarVendaRequest(novosItens);
 
-        // Act
+        
         var response = await _client.PutAsJsonAsync($"/api/v1/vendas/{vendaId}", request);
 
-        // Assert
+        
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         
         var content = await response.Content.ReadAsStringAsync();
@@ -75,7 +75,7 @@ public class AtualizarVendaIntegrationTests : IClassFixture<CustomWebApplication
     [Fact]
     public async Task Put_ItensDuplicados_DeveConsolidarEmUmaLinha()
     {
-        // Arrange
+        
         var vendaId = await CriarVendaHelper();
         var produtoId = Guid.NewGuid();
         
@@ -100,10 +100,10 @@ public class AtualizarVendaIntegrationTests : IClassFixture<CustomWebApplication
         
         var request = new AtualizarVendaRequest(itens);
 
-        // Act
+        
         var response = await _client.PutAsJsonAsync($"/api/v1/vendas/{vendaId}", request);
 
-        // Assert
+        
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         
         var venda = await response.Content.ReadFromJsonAsync<VendaDto>();
@@ -120,7 +120,7 @@ public class AtualizarVendaIntegrationTests : IClassFixture<CustomWebApplication
     [Fact]
     public async Task Put_QuantidadeAlterada_DeveRecalcularDesconto()
     {
-        // Arrange
+        
         var vendaId = await CriarVendaHelper();
         var produtoId = Guid.NewGuid();
         
@@ -135,10 +135,10 @@ public class AtualizarVendaIntegrationTests : IClassFixture<CustomWebApplication
         
         var request = new AtualizarVendaRequest(new List<ItemVendaDto> { item });
 
-        // Act
+        
         var response = await _client.PutAsJsonAsync($"/api/v1/vendas/{vendaId}", request);
 
-        // Assert
+        
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         
         var venda = await response.Content.ReadFromJsonAsync<VendaDto>();
@@ -154,15 +154,15 @@ public class AtualizarVendaIntegrationTests : IClassFixture<CustomWebApplication
     [Fact]
     public async Task Put_VendaInexistente_DeveRetornar404()
     {
-        // Arrange
+        
         var idInexistente = Guid.NewGuid();
         var novosItens = _builder.GerarItens(1);
         var request = new AtualizarVendaRequest(novosItens);
 
-        // Act
+        
         var response = await _client.PutAsJsonAsync($"/api/v1/vendas/{idInexistente}", request);
 
-        // Assert
+        
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
         
         var content = await response.Content.ReadAsStringAsync();
@@ -173,15 +173,15 @@ public class AtualizarVendaIntegrationTests : IClassFixture<CustomWebApplication
     [Fact]
     public async Task Put_VendaAtualizada_DeveGerarEventoCompraAlterada()
     {
-        // Arrange
+        
         var vendaId = await CriarVendaHelper();
         var novosItens = _builder.GerarItens(1);
         var request = new AtualizarVendaRequest(novosItens);
 
-        // Act
+        
         var response = await _client.PutAsJsonAsync($"/api/v1/vendas/{vendaId}", request);
 
-        // Assert
+        
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         
         // Verificar evento no banco usando helper
@@ -202,7 +202,7 @@ public class AtualizarVendaIntegrationTests : IClassFixture<CustomWebApplication
     [Fact]
     public async Task Put_ItemRemovido_DeveGerarEventoItemCancelado()
     {
-        // Arrange - Criar venda com 2 itens
+         - Criar venda com 2 itens
         var item1 = new ItemVendaDto(Guid.NewGuid(), 2, 100m, 0, 0);
         var item2 = new ItemVendaDto(Guid.NewGuid(), 3, 150m, 0, 0);
         
@@ -218,10 +218,10 @@ public class AtualizarVendaIntegrationTests : IClassFixture<CustomWebApplication
         // Atualizar venda removendo um item (mantendo apenas item1)
         var atualizarRequest = new AtualizarVendaRequest(new List<ItemVendaDto> { item1 });
 
-        // Act
+        
         var response = await _client.PutAsJsonAsync($"/api/v1/vendas/{vendaId}", atualizarRequest);
 
-        // Assert
+        
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         
         // Verificar evento no banco usando helper
@@ -243,7 +243,7 @@ public class AtualizarVendaIntegrationTests : IClassFixture<CustomWebApplication
     [Fact]
     public async Task Put_VendaAtualizada_DevePersistirMudancasNoBanco()
     {
-        // Arrange
+        
         var vendaId = await CriarVendaHelper();
         var produtoId = Guid.NewGuid();
         
@@ -260,10 +260,10 @@ public class AtualizarVendaIntegrationTests : IClassFixture<CustomWebApplication
         
         var request = new AtualizarVendaRequest(novosItens);
 
-        // Act
+        
         var response = await _client.PutAsJsonAsync($"/api/v1/vendas/{vendaId}", request);
 
-        // Assert
+        
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         
         // Verificar persistência no banco

@@ -26,13 +26,13 @@ public class ListarVendasIntegrationTests : IClassFixture<CustomWebApplicationFa
     [Fact]
     public async Task Get_SemFiltros_DeveRetornarTodasVendasPaginadas()
     {
-        // Arrange
+        
         await CriarMultiplasVendas(5);
 
-        // Act
+        
         var response = await _client.GetAsync("/api/v1/vendas?pageNumber=1&pageSize=10");
 
-        // Assert
+        
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         
         var result = await response.Content.ReadFromJsonAsync<PagedResult<VendaDto>>();
@@ -47,16 +47,16 @@ public class ListarVendasIntegrationTests : IClassFixture<CustomWebApplicationFa
     [Fact]
     public async Task Get_ComFiltroClienteId_DeveRetornarApenasVendasDoCliente()
     {
-        // Arrange
+        
         var clienteId = Guid.NewGuid();
         await CriarVendaComCliente(clienteId);
         await CriarVendaComCliente(clienteId);
         await CriarVendaComCliente(Guid.NewGuid()); // Venda de outro cliente
 
-        // Act
+        
         var response = await _client.GetAsync($"/api/v1/vendas?pageNumber=1&pageSize=10&clienteId={clienteId}");
 
-        // Assert
+        
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         
         var result = await response.Content.ReadFromJsonAsync<PagedResult<VendaDto>>();
@@ -69,16 +69,16 @@ public class ListarVendasIntegrationTests : IClassFixture<CustomWebApplicationFa
     [Fact]
     public async Task Get_ComFiltroFilialId_DeveRetornarApenasVendasDaFilial()
     {
-        // Arrange
+        
         var filialId = Guid.NewGuid();
         await CriarVendaComFilial(filialId);
         await CriarVendaComFilial(filialId);
         await CriarVendaComFilial(Guid.NewGuid()); // Venda de outra filial
 
-        // Act
+        
         var response = await _client.GetAsync($"/api/v1/vendas?pageNumber=1&pageSize=10&filialId={filialId}");
 
-        // Assert
+        
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         
         var result = await response.Content.ReadFromJsonAsync<PagedResult<VendaDto>>();
@@ -91,7 +91,7 @@ public class ListarVendasIntegrationTests : IClassFixture<CustomWebApplicationFa
     [Fact]
     public async Task Get_ComFiltroStatus_DeveRetornarApenasVendasComAqueleStatus()
     {
-        // Arrange
+        
         var vendaId1 = await CriarVendaHelper();
         var vendaId2 = await CriarVendaHelper();
         var vendaId3 = await CriarVendaHelper();
@@ -99,18 +99,18 @@ public class ListarVendasIntegrationTests : IClassFixture<CustomWebApplicationFa
         // Cancelar uma venda
         await _client.DeleteAsync($"/api/v1/vendas/{vendaId3}");
 
-        // Act - Buscar vendas ativas
+         - Buscar vendas ativas
         var responseAtivas = await _client.GetAsync("/api/v1/vendas?pageNumber=1&pageSize=10&status=Ativa");
         var responseCanceladas = await _client.GetAsync("/api/v1/vendas?pageNumber=1&pageSize=10&status=Cancelada");
 
-        // Assert - Vendas ativas
+         - Vendas ativas
         responseAtivas.StatusCode.Should().Be(HttpStatusCode.OK);
         var resultAtivas = await responseAtivas.Content.ReadFromJsonAsync<PagedResult<VendaDto>>();
         resultAtivas.Should().NotBeNull();
         resultAtivas!.Items.Should().HaveCountGreaterThanOrEqualTo(2, "deve ter pelo menos as 2 vendas ativas criadas neste teste");
         resultAtivas.Items.Should().OnlyContain(v => v.Status == "Ativa");
         
-        // Assert - Vendas canceladas
+         - Vendas canceladas
         responseCanceladas.StatusCode.Should().Be(HttpStatusCode.OK);
         var resultCanceladas = await responseCanceladas.Content.ReadFromJsonAsync<PagedResult<VendaDto>>();
         resultCanceladas.Should().NotBeNull();
@@ -121,22 +121,22 @@ public class ListarVendasIntegrationTests : IClassFixture<CustomWebApplicationFa
     [Fact]
     public async Task Get_ComPaginacao_DeveRespeitarPageNumberEPageSize()
     {
-        // Arrange
+        
         await CriarMultiplasVendas(15);
 
-        // Act - Primeira página com 5 itens
+         - Primeira página com 5 itens
         var responsePage1 = await _client.GetAsync("/api/v1/vendas?pageNumber=1&pageSize=5");
         var resultPage1 = await responsePage1.Content.ReadFromJsonAsync<PagedResult<VendaDto>>();
 
-        // Act - Segunda página com 5 itens
+         - Segunda página com 5 itens
         var responsePage2 = await _client.GetAsync("/api/v1/vendas?pageNumber=2&pageSize=5");
         var resultPage2 = await responsePage2.Content.ReadFromJsonAsync<PagedResult<VendaDto>>();
 
-        // Act - Terceira página com 5 itens
+         - Terceira página com 5 itens
         var responsePage3 = await _client.GetAsync("/api/v1/vendas?pageNumber=3&pageSize=5");
         var resultPage3 = await responsePage3.Content.ReadFromJsonAsync<PagedResult<VendaDto>>();
 
-        // Assert - Página 1
+         - Página 1
         responsePage1.StatusCode.Should().Be(HttpStatusCode.OK);
         resultPage1.Should().NotBeNull();
         resultPage1!.Items.Should().HaveCount(5, "pageSize foi definido como 5");
@@ -146,7 +146,7 @@ public class ListarVendasIntegrationTests : IClassFixture<CustomWebApplicationFa
         resultPage1.HasPreviousPage.Should().BeFalse();
         resultPage1.HasNextPage.Should().BeTrue();
 
-        // Assert - Página 2
+         - Página 2
         responsePage2.StatusCode.Should().Be(HttpStatusCode.OK);
         resultPage2.Should().NotBeNull();
         resultPage2!.Items.Should().HaveCount(5, "pageSize foi definido como 5");
@@ -154,14 +154,14 @@ public class ListarVendasIntegrationTests : IClassFixture<CustomWebApplicationFa
         resultPage2.HasPreviousPage.Should().BeTrue();
         resultPage2.HasNextPage.Should().BeTrue();
 
-        // Assert - Página 3
+         - Página 3
         responsePage3.StatusCode.Should().Be(HttpStatusCode.OK);
         resultPage3.Should().NotBeNull();
         resultPage3!.Items.Should().HaveCount(5, "pageSize foi definido como 5");
         resultPage3.PageNumber.Should().Be(3);
         resultPage3.HasPreviousPage.Should().BeTrue();
 
-        // Assert - Vendas não devem se repetir entre páginas
+         - Vendas não devem se repetir entre páginas
         var idsPage1 = resultPage1.Items.Select(v => v.Id).ToList();
         var idsPage2 = resultPage2.Items.Select(v => v.Id).ToList();
         var idsPage3 = resultPage3.Items.Select(v => v.Id).ToList();
@@ -174,13 +174,13 @@ public class ListarVendasIntegrationTests : IClassFixture<CustomWebApplicationFa
     [Fact]
     public async Task Get_Listagem_DeveRetornarMetadadosDePaginacao()
     {
-        // Arrange
+        
         await CriarMultiplasVendas(7);
 
-        // Act
+        
         var response = await _client.GetAsync("/api/v1/vendas?pageNumber=1&pageSize=3");
 
-        // Assert
+        
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         
         var result = await response.Content.ReadFromJsonAsync<PagedResult<VendaDto>>();

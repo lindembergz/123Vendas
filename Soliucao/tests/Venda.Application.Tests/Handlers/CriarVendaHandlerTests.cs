@@ -49,7 +49,7 @@ public class CriarVendaHandlerTests
     [Fact]
     public async Task Handle_ComDadosValidos_DeveCriarVendaComSucesso()
     {
-        // Arrange
+        
         var requestId = Guid.NewGuid();
         var clienteId = Guid.NewGuid();
         var filialId = Guid.NewGuid();
@@ -77,10 +77,10 @@ public class CriarVendaHandlerTests
         _idempotencyStore.SaveAsync(requestId, nameof(CriarVendaCommand), Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
-        // Act
+        
         var result = await _handler.Handle(command, CancellationToken.None);
 
-        // Assert
+        
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().NotBeEmpty();
 
@@ -107,7 +107,7 @@ public class CriarVendaHandlerTests
     [Fact]
     public async Task Handle_ComMaisDe20ItensIguais_DeveRetornarFailure()
     {
-        // Arrange
+        
         var requestId = Guid.NewGuid();
         var clienteId = Guid.NewGuid();
         var filialId = Guid.NewGuid();
@@ -130,10 +130,10 @@ public class CriarVendaHandlerTests
         _clienteService.ClienteExisteAsync(clienteId, Arg.Any<CancellationToken>())
             .Returns(true);
 
-        // Act
+        
         var result = await _handler.Handle(command, CancellationToken.None);
 
-        // Assert
+        
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Contain("20 unidades");
 
@@ -151,7 +151,7 @@ public class CriarVendaHandlerTests
     [Fact]
     public async Task Handle_ComRequestIdExistente_DeveRetornarAggregateIdSemCriarNovaVenda()
     {
-        // Arrange
+        
         var requestId = Guid.NewGuid();
         var existingAggregateId = Guid.NewGuid();
         var clienteId = Guid.NewGuid();
@@ -173,10 +173,10 @@ public class CriarVendaHandlerTests
         _idempotencyStore.GetAggregateIdAsync(requestId, Arg.Any<CancellationToken>())
             .Returns(existingAggregateId);
 
-        // Act
+        
         var result = await _handler.Handle(command, CancellationToken.None);
 
-        // Assert
+        
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().Be(existingAggregateId);
 
@@ -194,9 +194,9 @@ public class CriarVendaHandlerTests
     }
 
     [Fact]
-    public async Task Handle_ComCrmIndisponivel_DeveCriarVendaPendenteValidacao()
+    public async Task Handle_ComCrmIndisponivel_DeveRetornarFalha()
     {
-        // Arrange
+        
         var requestId = Guid.NewGuid();
         var clienteId = Guid.NewGuid();
         var filialId = Guid.NewGuid();
@@ -218,35 +218,22 @@ public class CriarVendaHandlerTests
         _clienteService.ClienteExisteAsync(clienteId, Arg.Any<CancellationToken>())
             .Throws(new Exception("CRM indisponível"));
 
-        _vendaRepository.AdicionarAsync(Arg.Any<VendaAgregado>(), Arg.Any<CancellationToken>())
-            .Returns(Task.CompletedTask);
-
-        _idempotencyStore.SaveAsync(requestId, nameof(CriarVendaCommand), Arg.Any<Guid>(), Arg.Any<CancellationToken>())
-            .Returns(Task.CompletedTask);
-
-        // Act
+        
         var result = await _handler.Handle(command, CancellationToken.None);
 
-        // Assert
-        result.IsSuccess.Should().BeTrue();
-        result.Value.Should().NotBeEmpty();
+        
+        result.IsFailure.Should().BeTrue();
+        result.Error.Should().Contain("indisponível");
 
-        await _vendaRepository.Received(1).AdicionarAsync(
-            Arg.Is<VendaAgregado>(v => 
-                v.Status == StatusVenda.PendenteValidacao),
-            Arg.Any<CancellationToken>());
-
-        await _idempotencyStore.Received(1).SaveAsync(
-            requestId,
-            nameof(CriarVendaCommand),
-            Arg.Any<Guid>(),
+        await _vendaRepository.DidNotReceive().AdicionarAsync(
+            Arg.Any<VendaAgregado>(),
             Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Handle_ComClienteInvalido_DeveCriarVendaPendenteValidacao()
+    public async Task Handle_ComClienteInvalido_DeveRetornarFalha()
     {
-        // Arrange
+        
         var requestId = Guid.NewGuid();
         var clienteId = Guid.NewGuid();
         var filialId = Guid.NewGuid();
@@ -268,29 +255,22 @@ public class CriarVendaHandlerTests
         _clienteService.ClienteExisteAsync(clienteId, Arg.Any<CancellationToken>())
             .Returns(false);
 
-        _vendaRepository.AdicionarAsync(Arg.Any<VendaAgregado>(), Arg.Any<CancellationToken>())
-            .Returns(Task.CompletedTask);
-
-        _idempotencyStore.SaveAsync(requestId, nameof(CriarVendaCommand), Arg.Any<Guid>(), Arg.Any<CancellationToken>())
-            .Returns(Task.CompletedTask);
-
-        // Act
+        
         var result = await _handler.Handle(command, CancellationToken.None);
 
-        // Assert
-        result.IsSuccess.Should().BeTrue();
-        result.Value.Should().NotBeEmpty();
+        
+        result.IsFailure.Should().BeTrue();
+        result.Error.Should().Contain("não encontrado");
 
-        await _vendaRepository.Received(1).AdicionarAsync(
-            Arg.Is<VendaAgregado>(v => 
-                v.Status == StatusVenda.PendenteValidacao),
+        await _vendaRepository.DidNotReceive().AdicionarAsync(
+            Arg.Any<VendaAgregado>(),
             Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task Handle_ComSucesso_DevePublicarEventosDeDominio()
     {
-        // Arrange
+        
         var requestId = Guid.NewGuid();
         var clienteId = Guid.NewGuid();
         var filialId = Guid.NewGuid();
@@ -318,10 +298,10 @@ public class CriarVendaHandlerTests
         _idempotencyStore.SaveAsync(requestId, nameof(CriarVendaCommand), Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
-        // Act
+        
         var result = await _handler.Handle(command, CancellationToken.None);
 
-        // Assert
+        
         result.IsSuccess.Should().BeTrue();
 
         // Verifica que evento CompraAlterada foi publicado (ao adicionar item)
@@ -333,7 +313,7 @@ public class CriarVendaHandlerTests
     [Fact]
     public async Task Handle_ComMultiplosItens_DeveAdicionarTodosOsItens()
     {
-        // Arrange
+        
         var requestId = Guid.NewGuid();
         var clienteId = Guid.NewGuid();
         var filialId = Guid.NewGuid();
@@ -362,10 +342,10 @@ public class CriarVendaHandlerTests
         _idempotencyStore.SaveAsync(requestId, nameof(CriarVendaCommand), Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
-        // Act
+        
         var result = await _handler.Handle(command, CancellationToken.None);
 
-        // Assert
+        
         result.IsSuccess.Should().BeTrue();
 
         await _vendaRepository.Received(1).AdicionarAsync(
