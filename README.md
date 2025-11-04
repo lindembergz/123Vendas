@@ -14,7 +14,7 @@ Sistema de vendas com CRUD completo, regras de negócio centralizadas e eventos 
 - ✅ **Validações**: FluentValidation para comandos
 - ✅ **Logs Estruturados**: Serilog com JSON
 - ✅ **Health Checks**: Monitoramento de saúde da aplicação
-- ✅ **Testes**: 210 testes (unitários, aplicação e integração)
+- ✅ **Testes**: 204 testes (unitários, aplicação e integração)
 
 ### Regras de Negócio
 
@@ -50,10 +50,10 @@ Sistema de vendas com CRUD completo, regras de negócio centralizadas e eventos 
 │           └── CRM.Application/                → Simulated module
 └── tests/
     ├── Shared.Tests/                           → Shared components tests
-    ├── Venda.Domain.Tests/                     → Domain unit tests (48 tests)
+    ├── Venda.Domain.Tests/                     → Domain unit tests (47 tests)
     ├── Venda.Application.Tests/                → Application tests (49 tests)
     ├── Venda.Infrastructure.Tests/             → Infrastructure tests (27 tests)
-    └── Venda.Integration.Tests/                → Integration tests (68 tests)
+    └── Venda.Integration.Tests/                → Integration tests (63 tests)
 
 
 ## 🏛️ Decisões Arquiteturais
@@ -165,7 +165,7 @@ Basta executar `dotnet run` e o banco estará pronto para uso!
 - **WebApplicationFactory**: Testes de integração end-to-end
 - **SQLite In-Memory**: Banco de dados isolado para testes de integração
 - **Bogus**: Geração de dados fake realistas
-- **Cobertura**: 210 testes (unitários, aplicação, infraestrutura e integração)
+- **Cobertura**: 204 testes (unitários, aplicação, infraestrutura e integração)
 
 **Nota**
 A implementação atual usa SQLite in-memory para os testes de integração, que é uma abordagem mais simples e adequada para este projeto porque:
@@ -198,10 +198,10 @@ Quando Testcontainers seria útil:
 
 dotnet test /p:CollectCoverage=true
 
-**Resultados**: 210 testes passando (100%)
-- 48 testes unitários (Domain)
+**Resultados**: 204 testes passando (100%)
+- 47 testes unitários (Domain)
 - 49 testes de aplicação (Handlers, Validators)
-- 68 testes de integração (API endpoints)
+- 63 testes de integração (API endpoints)
 - 18 testes compartilhados (Shared)
 - 27 testes de infraestrutura (Infrastructure)
 
@@ -209,12 +209,12 @@ dotnet test /p:CollectCoverage=true
 
 | Categoria | Quantidade | Descrição |
 |-----------|------------|-----------|
-| **Domain** | 48 | Testes unitários de entidades, value objects e regras de negócio |
+| **Domain** | 47 | Testes unitários de entidades, value objects e regras de negócio |
 | **Application** | 49 | Testes de handlers (23), validators (19) e services (7) |
 | **Infrastructure** | 27 | Testes de repositórios, outbox pattern e persistência |
-| **Integration** | 68 | Testes end-to-end dos endpoints da API (56) e infraestrutura (12) |
-| **Shared** | 18 | Testes de componentes compartilhados (6), integração (3) e services (9) |
-| **Total** | **210** | **100% de aprovação** |
+| **Integration** | 63 | Testes end-to-end dos endpoints da API e infraestrutura |
+| **Shared** | 18 | Testes de componentes compartilhados, integração e services |
+| **Total** | **204** | **100% de aprovação** |
 
 
 ### Implementação dos Testes de Integração
@@ -272,7 +272,7 @@ public async Task Post_VendaValida_DeveRetornar201EIdDaVenda()
 
 #### Cobertura dos Testes de Integração
 
-Os 68 testes de integração cobrem:
+Os 63 testes de integração cobrem:
 -  **CRUD Completo**: Criar, consultar, listar, atualizar e cancelar vendas
 -  **Regras de Desconto**: Validação de 10% e 20% de desconto
 -  **Eventos de Domínio**: Verificação de CompraCriada, CompraAlterada, CompraCancelada, ItemCancelado
@@ -321,7 +321,7 @@ Formato estruturado com propriedades JSON para facilitar análise.
 
 ### Diferenciais Técnicos
 
--  **210 Testes Automatizados**: Cobertura completa (unitários, aplicação, infraestrutura e integração)
+-  **204 Testes Automatizados**: Cobertura completa (unitários, aplicação, infraestrutura e integração)
 -  **Outbox Pattern**: Garantia de entrega de eventos com consistência transacional
 -  **Health Checks**: Monitoramento de saúde (Database, Outbox, Integrações)
 -  **Circuit Breaker**: Resiliência em integrações externas com Polly
@@ -337,7 +337,7 @@ Formato estruturado com propriedades JSON para facilitar análise.
 -  **SOLID**: Princípios aplicados em todo o código
 -  **DDD**: Domain-Driven Design com entidades ricas
 -  **Injeção de Dependência**: Inversão de controle nativa do .NET
--  **Testes Abrangentes**: 210 testes com 100% de aprovação
+-  **Testes Abrangentes**: 204 testes com 100% de aprovação
 -  **Tratamento de Erros**: Result Pattern sem exceções de negócio
 -  **Código Limpo**: Seguindo Object Calisthenics e Clean Code
 -  **Documentação**: Swagger/OpenAPI completo
