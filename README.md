@@ -67,6 +67,9 @@ Separação clara entre comandos (escrita) e queries (leitura):
 - Handlers isolados e testáveis
 - **Benefício**: Código mais organizado e escalável
 
+  <img width="691" height="670" alt="image" src="https://github.com/user-attachments/assets/f58b0f1b-fd31-4c22-a924-bf3df5ee0fd4" />
+
+
 ## 🚀 Como Executar
 
 ### Pré-requisitos
