@@ -90,19 +90,12 @@ public class CriarVendaHandler : IRequestHandler<CriarVendaCommand, Result<Guid>
         }
 
         //Persistir venda (que salva eventos no outbox)
+        //Nota: Eventos serão publicados assincronamente pelo OutboxProcessor
         await _vendaRepository.AdicionarAsync(venda, ct);
 
         _logger.LogInformation(
             "Venda {VendaId} criada com sucesso. Número: {NumeroVenda}, Cliente: {ClienteId}, Status: {Status}",
             venda.Id, venda.NumeroVenda, venda.ClienteId, venda.Status);
-
-        //Publicar eventos de domínio via MediatR
-        foreach (var domainEvent in venda.DomainEvents)
-        {
-            await _mediator.Publish(domainEvent, ct);
-        }
-
-        venda.ClearDomainEvents();
 
         //Salvar RequestId no IdempotencyStore
         await _idempotencyStore.SaveAsync(
