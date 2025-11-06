@@ -27,9 +27,20 @@ Sistema de vendas com CRUD completo, regras de negócio centralizadas e eventos 
 
 - **Clean Code**: Código limpo e legível
 - **SOLID**: Princípios de design orientado a objetos
+      -SRP: Cada classe tem uma única responsabilidade. `PoliticaDesconto` isolada do agregado. 
+      -OCP: IPoliticaDesconto permite novas políticas sem modificar código existente. 
+      -LSP: Interfaces bem definidas, implementações substituíveis. 
+      -ISP: Interfaces pequenas e focadas IClienteService, IProdutoService). 
+      -DIP:  Domain não depende de Infrastructure. Abstrações no Domain, implementações na Infrastructure. 
 - **DRY**: Don't Repeat Yourself
 - **YAGNI**: You Aren't Gonna Need It
 - **Object Calisthenics**: Regras para código mais expressivo
+- **DDD** :
+    - Aggregate Root: VendaAgregado controla acesso aos ItemVenda
+    - Value Objects: ItemVenda é imutável (record) sem identidade própria
+    - Domain Events: CompraCriada, CompraAlterada, CompraCancelada, ItemCancelado
+    - Ubiquitous Language: Termos de negócio no código
+    - Bounded Contexts: Módulos Venda, CRM e Estoque
 
 ## 🏗️ Estrutura do Projeto
 
@@ -95,6 +106,33 @@ Separação clara entre comandos (escrita) e queries (leitura):
    - **Swagger UI**: `https://localhost:5001/swagger` - Documentação interativa
    - **Health Check**: `https://localhost:5001/health` - Status da aplicação
    - **Endpoints**: `https://localhost:5001/api/v1/vendas` - API de vendas
+  
+     **Criar Venda com Desconto**
+     **Endpoint**: POST /api/v1/vendas
+     **Payload:**
+          {
+            "clienteId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+            "filialId": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+            "itens": [
+              {
+                "produtoId": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
+                "quantidade": 10,
+                "valorUnitario": 100.00
+              }
+            ]
+          }
+      - 10 unidades = 20% de desconto automático
+      - ValorTotal = 10 × 100 × 0.8 = R$ 800,00
+      - Evento `CompraCriada` gerado automaticamente
+      - Número sequencial gerado por filial
+    
+     **Listar Vendas**
+     **Endpoint**: `GET /api/v1/vendas`
+     **Demonstrar:**
+      - Paginação (pageNumber, pageSize)
+      - Filtros (clienteId, filialId, status, dataInicio, dataFim)
+      - Ordenação por data (mais recentes primeiro)
+  
 
 5. **Executar Testes**
 
