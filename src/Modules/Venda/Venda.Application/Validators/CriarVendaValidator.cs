@@ -17,8 +17,9 @@ public class CriarVendaValidator : AbstractValidator<CriarVendaCommand>
             .NotEmpty().WithMessage("FilialId é obrigatória");
         
         RuleFor(x => x.Itens)
+            .NotNull().WithMessage("Itens é obrigatório")
             .NotEmpty().WithMessage("Venda deve conter ao menos um item")
-            .Must(itens => itens.Count <= 100).WithMessage("Venda não pode ter mais de 100 itens");
+            .Must(itens => itens == null || itens.Count <= 100).WithMessage("Venda não pode ter mais de 100 itens");
         
         RuleForEach(x => x.Itens).ChildRules(item =>
         {
