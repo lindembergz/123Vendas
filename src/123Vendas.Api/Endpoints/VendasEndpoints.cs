@@ -64,6 +64,8 @@ public static class VendasEndpoints
         [FromBody] CriarVendaRequest request,
         [FromServices] IMediator mediator,
         [FromServices] ILogger<Program> logger,
+        [FromServices] LinkGenerator linkGenerator,
+        HttpContext httpContext,
         CancellationToken ct)
     {
         var command = new CriarVendaCommand(
@@ -77,16 +79,28 @@ public static class VendasEndpoints
         if (result.IsFailure)
         {
             logger.LogWarning("Falha ao criar venda: {Error}", result.Error);
+            
+            // Determina se é erro de validação ou erro de negócio
+            var isValidationError = result.Error?.Contains("obrigatório") == true ||
+                                   result.Error?.Contains("deve") == true ||
+                                   result.Error?.Contains("inválido") == true;
+            
             return Results.BadRequest(new ProblemDetails
             {
-                Title = "Erro ao criar venda",
+                Title = isValidationError ? "Erro de validação" : "Erro ao criar venda",
                 Detail = result.Error,
                 Status = StatusCodes.Status400BadRequest
             });
         }
 
+        // Gera URI absoluta usando LinkGenerator
+        var location = linkGenerator.GetUriByName(
+            httpContext,
+            "ObterVendaPorId",
+            new { id = result.Value });
+
         logger.LogInformation("Venda {VendaId} criada com sucesso", result.Value);
-        return Results.Created($"/api/v1/vendas/{result.Value}", result.Value);
+        return Results.Created(location, result.Value);
     }
 
     private static async Task<IResult> ObterVendaPorId(
