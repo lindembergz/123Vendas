@@ -145,10 +145,9 @@ public class CriarVendaIntegrationTests : IClassFixture<CustomWebApplicationFact
         var response = await _client.PostAsJsonAsync("/api/v1/vendas", request);
 
         
-        // NOTA: Atualmente retorna 201 porque a validação FluentValidation não está sendo aplicada
-        // TODO: Configurar pipeline de validação no MediatR para aplicar CriarVendaValidator
-        response.StatusCode.Should().Be(HttpStatusCode.Created, 
-            "validação FluentValidation não está configurada no pipeline");
+        // Validação FluentValidation agora está configurada e deve rejeitar lista vazia
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest, 
+            "validação deve rejeitar venda sem itens");
     }
 
     [Fact]

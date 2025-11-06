@@ -55,7 +55,11 @@ try
 
     //Configure the HTTP request pipeline.
     
-    // Middleware de tratamento global de exceções (deve ser o primeiro)
+    // Middleware de CorrelationId (deve ser o primeiro para rastreamento)
+    app.UseMiddleware<CorrelationIdMiddleware>();
+    Log.Information("Correlation ID Middleware configurado");
+    
+    // Middleware de tratamento global de exceções
     app.UseMiddleware<GlobalExceptionMiddleware>();
     Log.Information("Global Exception Middleware configurado");
     

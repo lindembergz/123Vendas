@@ -16,6 +16,9 @@ public static class ServiceCollectionExtensions
         services.AddMediatR(cfg =>
         {
             cfg.RegisterServicesFromAssembly(typeof(Venda.Application.Commands.CriarVendaCommand).Assembly);
+            
+            // Adicionar ValidationBehavior ao pipeline
+            cfg.AddOpenBehavior(typeof(_123Vendas.Api.Behaviors.ValidationBehavior<,>));
         });
 
         //FluentValidation - Registrar validadores
