@@ -98,10 +98,8 @@ public class CriarVendaHandlerTests
             Arg.Any<Guid>(),
             Arg.Any<CancellationToken>());
 
-        // Verifica que evento CompraAlterada foi publicado (ao adicionar item)
-        await _mediator.Received().Publish(
-            Arg.Is<IDomainEvent>(e => e is CompraAlterada),
-            Arg.Any<CancellationToken>());
+        // Nota: Eventos não são mais publicados diretamente via MediatR
+        // Eles são salvos no Outbox e processados assincronamente pelo OutboxProcessor
     }
 
     [Fact]
@@ -188,9 +186,8 @@ public class CriarVendaHandlerTests
             Arg.Any<Guid>(),
             Arg.Any<CancellationToken>());
 
-        await _mediator.DidNotReceive().Publish(
-            Arg.Any<IDomainEvent>(),
-            Arg.Any<CancellationToken>());
+        // Nota: Eventos não são mais publicados diretamente via MediatR
+        // Eles são salvos no Outbox e processados assincronamente pelo OutboxProcessor
     }
 
     [Fact]
@@ -268,9 +265,9 @@ public class CriarVendaHandlerTests
     }
 
     [Fact]
-    public async Task Handle_ComSucesso_DevePublicarEventosDeDominio()
+    public async Task Handle_ComSucesso_DeveGerarEventosDeDominioNoAgregado()
     {
-        
+        // Arrange
         var requestId = Guid.NewGuid();
         var clienteId = Guid.NewGuid();
         var filialId = Guid.NewGuid();
@@ -298,16 +295,19 @@ public class CriarVendaHandlerTests
         _idempotencyStore.SaveAsync(requestId, nameof(CriarVendaCommand), Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
-        
+        // Act
         var result = await _handler.Handle(command, CancellationToken.None);
 
-        
+        // Assert
         result.IsSuccess.Should().BeTrue();
 
-        // Verifica que evento CompraAlterada foi publicado (ao adicionar item)
-        await _mediator.Received().Publish(
-            Arg.Is<IDomainEvent>(e => e is CompraAlterada),
+        // Verifica que o repositório foi chamado (eventos são salvos no Outbox pelo repositório)
+        await _vendaRepository.Received(1).AdicionarAsync(
+            Arg.Is<VendaAgregado>(v => v.DomainEvents.Any()),
             Arg.Any<CancellationToken>());
+        
+        // Nota: Eventos não são mais publicados diretamente via MediatR no handler
+        // Eles são salvos no Outbox pelo repositório e processados assincronamente pelo OutboxProcessor
     }
 
     [Fact]
