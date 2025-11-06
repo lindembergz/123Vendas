@@ -38,6 +38,10 @@ try
     //8. Configurar Options Pattern para serviços externos
     builder.Services.Configure<ServiceSettings>("CRM", builder.Configuration.GetSection("Services:CRM"));
     builder.Services.Configure<ServiceSettings>("Estoque", builder.Configuration.GetSection("Services:Estoque"));
+    
+    //8.1. Configurar Options Pattern para OutboxProcessor
+    builder.Services.Configure<Venda.Infrastructure.Configuration.OutboxProcessorSettings>(
+        builder.Configuration.GetSection("OutboxProcessor"));
 
     //9. Configurar serviços externos (CRM e Estoque)
     // MODO: MOCK para desenvolvimento (sempre retorna sucesso)

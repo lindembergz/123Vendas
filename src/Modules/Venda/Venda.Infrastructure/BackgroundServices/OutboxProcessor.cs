@@ -3,39 +3,48 @@ using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using _123Vendas.Shared.Events;
+using Venda.Infrastructure.Configuration;
 using Venda.Infrastructure.Interfaces;
 
 namespace Venda.Infrastructure.BackgroundServices;
 
 /// <summary>
 /// Background service que processa eventos do Outbox Pattern.
-/// Executa a cada 10 segundos e publica eventos pendentes via MediatR.
+/// Executa periodicamente (configurável via appsettings.json) e publica eventos pendentes via MediatR.
 /// Implementa retry automático com limite de 5 tentativas.
 /// </summary>
 public class OutboxProcessor : BackgroundService
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<OutboxProcessor> _logger;
-    private const int ProcessingIntervalSeconds = 10;
-    private const int ErrorDelaySeconds = 30;
+    private readonly OutboxProcessorSettings _settings;
     
-    public OutboxProcessor(IServiceProvider serviceProvider, ILogger<OutboxProcessor> logger)
+    public OutboxProcessor(
+        IServiceProvider serviceProvider, 
+        ILogger<OutboxProcessor> logger,
+        IOptions<OutboxProcessorSettings> settings)
     {
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _settings = settings?.Value ?? throw new ArgumentNullException(nameof(settings));
     }
     
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("OutboxProcessor iniciado");
+        _logger.LogInformation(
+            "OutboxProcessor iniciado. Intervalo: {ProcessingInterval}s, Batch: {BatchSize}, ErrorDelay: {ErrorDelay}s",
+            _settings.ProcessingIntervalSeconds,
+            _settings.BatchSize,
+            _settings.ErrorDelaySeconds);
         
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
                 await ProcessarEventosPendentesAsync(stoppingToken);
-                await Task.Delay(TimeSpan.FromSeconds(ProcessingIntervalSeconds), stoppingToken);
+                await Task.Delay(TimeSpan.FromSeconds(_settings.ProcessingIntervalSeconds), stoppingToken);
             }
             catch (OperationCanceledException)
             {
@@ -45,7 +54,7 @@ public class OutboxProcessor : BackgroundService
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Erro no OutboxProcessor");
-                await Task.Delay(TimeSpan.FromSeconds(ErrorDelaySeconds), stoppingToken);
+                await Task.Delay(TimeSpan.FromSeconds(_settings.ErrorDelaySeconds), stoppingToken);
             }
         }
         
@@ -58,7 +67,7 @@ public class OutboxProcessor : BackgroundService
         var outbox = scope.ServiceProvider.GetRequiredService<IOutboxService>();
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
         
-        var eventosPendentes = await outbox.ObterEventosPendentesAsync(50, stoppingToken);
+        var eventosPendentes = await outbox.ObterEventosPendentesAsync(_settings.BatchSize, stoppingToken);
         
         if (eventosPendentes.Count == 0)
         {
