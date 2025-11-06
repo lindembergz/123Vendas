@@ -108,7 +108,9 @@ Separação clara entre comandos (escrita) e queries (leitura):
    - **Endpoints**: `https://localhost:5001/api/v1/vendas` - API de vendas
   
      **Criar Venda com Desconto**
+     
      **Endpoint**: POST /api/v1/vendas
+     
      **Payload:**
           {
             "clienteId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
@@ -127,7 +129,9 @@ Separação clara entre comandos (escrita) e queries (leitura):
       - Número sequencial gerado por filial
     
      **Listar Vendas**
-     **Endpoint**: `GET /api/v1/vendas`
+     
+     **Endpoint**: GET /api/v1/vendas
+     
      **Demonstrar:**
       - Paginação (pageNumber, pageSize)
       - Filtros (clienteId, filialId, status, dataInicio, dataFim)
