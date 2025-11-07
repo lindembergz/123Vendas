@@ -22,7 +22,6 @@ public class AtualizarVendaHandlerTests
     private readonly IPoliticaDesconto _politicaDesconto = new PoliticaDesconto();
     private readonly IVendaRepository _vendaRepository;
     private readonly IIdempotencyStore _idempotencyStore;
-    private readonly IMediator _mediator;
     private readonly ILogger<AtualizarVendaHandler> _logger;
     private readonly AtualizarVendaHandler _handler;
 
@@ -30,7 +29,6 @@ public class AtualizarVendaHandlerTests
     {
         _vendaRepository = Substitute.For<IVendaRepository>();
         _idempotencyStore = Substitute.For<IIdempotencyStore>();
-        _mediator = Substitute.For<IMediator>();
         _logger = Substitute.For<ILogger<AtualizarVendaHandler>>();
         
         var updaterLogger = Substitute.For<ILogger<Venda.Application.Services.VendaUpdater>>();
@@ -39,7 +37,6 @@ public class AtualizarVendaHandlerTests
         _handler = new AtualizarVendaHandler(
             _vendaRepository,
             _idempotencyStore,
-            _mediator,
             vendaUpdater,
             _logger);
     }
@@ -111,10 +108,7 @@ public class AtualizarVendaHandlerTests
             vendaId,
             Arg.Any<CancellationToken>());
 
-        // Verifica que apenas CompraAlterada foi publicado (novo item adicionado)
-        await _mediator.Received().Publish(
-            Arg.Is<IDomainEvent>(e => e is CompraAlterada),
-            Arg.Any<CancellationToken>());
+        // Nota: Eventos são salvos no Outbox pelo Repository e publicados pelo OutboxProcessor
     }
 
     [Fact]
@@ -155,10 +149,6 @@ public class AtualizarVendaHandlerTests
             Arg.Any<Guid>(),
             Arg.Any<string>(),
             Arg.Any<Guid>(),
-            Arg.Any<CancellationToken>());
-
-        await _mediator.DidNotReceive().Publish(
-            Arg.Any<IDomainEvent>(),
             Arg.Any<CancellationToken>());
     }
 
@@ -211,10 +201,6 @@ public class AtualizarVendaHandlerTests
 
         await _vendaRepository.DidNotReceive().AtualizarAsync(
             Arg.Any<VendaAgregado>(),
-            Arg.Any<CancellationToken>());
-
-        await _mediator.DidNotReceive().Publish(
-            Arg.Any<IDomainEvent>(),
             Arg.Any<CancellationToken>());
     }
 
@@ -335,15 +321,7 @@ public class AtualizarVendaHandlerTests
             Arg.Is<VendaAgregado>(v => v.Produtos.Count == 2),
             Arg.Any<CancellationToken>());
 
-        // Verifica que ItemCancelado foi publicado para os itens removidos
-        await _mediator.Received(2).Publish(
-            Arg.Is<IDomainEvent>(e => e is ItemCancelado),
-            Arg.Any<CancellationToken>());
-
-        // Verifica que CompraAlterada foi publicado para os novos itens
-        await _mediator.Received(2).Publish(
-            Arg.Is<IDomainEvent>(e => e is CompraAlterada),
-            Arg.Any<CancellationToken>());
+        // Nota: Eventos (ItemCancelado e CompraAlterada) são salvos no Outbox pelo Repository
     }
 
     [Fact]
@@ -443,10 +421,7 @@ public class AtualizarVendaHandlerTests
         result.Value.Itens[0].ProdutoId.Should().Be(produtoId);
         result.Value.Itens[0].Quantidade.Should().Be(5);
 
-        // Verifica que CompraAlterada foi publicado (quantidade aumentada)
-        await _mediator.Received().Publish(
-            Arg.Is<IDomainEvent>(e => e is CompraAlterada),
-            Arg.Any<CancellationToken>());
+        // Nota: Evento CompraAlterada é salvo no Outbox pelo Repository
     }
 
     [Fact]
@@ -499,10 +474,7 @@ public class AtualizarVendaHandlerTests
         result.Value.Itens[0].ProdutoId.Should().Be(produtoId);
         result.Value.Itens[0].Quantidade.Should().Be(2);
 
-        // Verifica que CompraAlterada foi publicado (quantidade diminuída)
-        await _mediator.Received().Publish(
-            Arg.Is<IDomainEvent>(e => e is CompraAlterada),
-            Arg.Any<CancellationToken>());
+        // Nota: Evento CompraAlterada é salvo no Outbox pelo Repository
     }
 
     [Fact]
@@ -556,10 +528,7 @@ public class AtualizarVendaHandlerTests
         result.Value!.Itens.Should().HaveCount(1);
         result.Value.Itens[0].ProdutoId.Should().Be(produtoId2);
 
-        // Verifica que ItemCancelado foi publicado para o item removido
-        await _mediator.Received().Publish(
-            Arg.Is<IDomainEvent>(e => e is ItemCancelado),
-            Arg.Any<CancellationToken>());
+        // Nota: Evento ItemCancelado é salvo no Outbox pelo Repository
     }
 
     [Fact]
@@ -611,9 +580,6 @@ public class AtualizarVendaHandlerTests
         result.Value!.Itens.Should().HaveCount(1);
         result.Value.Itens[0].Quantidade.Should().Be(3);
 
-        // Não deve gerar eventos pois nada mudou
-        await _mediator.DidNotReceive().Publish(
-            Arg.Any<IDomainEvent>(),
-            Arg.Any<CancellationToken>());
+        // Nota: Nenhum evento é gerado pois nada mudou
     }
 }
