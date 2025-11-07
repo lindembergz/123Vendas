@@ -17,20 +17,17 @@ public class AtualizarVendaHandler : IRequestHandler<AtualizarVendaCommand, Resu
 {
     private readonly IVendaRepository _vendaRepository;
     private readonly IIdempotencyStore _idempotencyStore;
-    private readonly IMediator _mediator;
     private readonly VendaUpdater _vendaUpdater;
     private readonly ILogger<AtualizarVendaHandler> _logger;
 
     public AtualizarVendaHandler(
         IVendaRepository vendaRepository,
         IIdempotencyStore idempotencyStore,
-        IMediator mediator,
         VendaUpdater vendaUpdater,
         ILogger<AtualizarVendaHandler> logger)
     {
         _vendaRepository = vendaRepository;
         _idempotencyStore = idempotencyStore;
-        _mediator = mediator;
         _vendaUpdater = vendaUpdater;
         _logger = logger;
     }
@@ -57,15 +54,13 @@ public class AtualizarVendaHandler : IRequestHandler<AtualizarVendaCommand, Resu
             if (updateResult.IsFailure)
                 return Result<VendaDto>.Failure(updateResult.Error!);
 
-            //Persistir venda atualizada
+            //Persistir venda atualizada (que salva eventos no outbox)
+            //Nota: Eventos serão publicados assincronamente pelo OutboxProcessor
             await _vendaRepository.AtualizarAsync(venda, ct);
 
             _logger.LogInformation(
                 "Venda {VendaId} atualizada com sucesso. Número: {NumeroVenda}, Total de itens: {TotalItens}",
                 venda.Id, venda.NumeroVenda, venda.Produtos.Count);
-
-            //Publicar eventos de domínio
-            await PublicarEventosDeDominio(venda, ct);
 
             //Salvar idempotência
             await _idempotencyStore.SaveAsync(
@@ -103,16 +98,6 @@ public class AtualizarVendaHandler : IRequestHandler<AtualizarVendaCommand, Resu
             return null;
 
         return Result<VendaDto>.Success(MapearParaDto(vendaExistente));
-    }
-
-    private async Task PublicarEventosDeDominio(Domain.Aggregates.VendaAgregado venda, CancellationToken ct)
-    {
-        foreach (var domainEvent in venda.DomainEvents)
-        {
-            await _mediator.Publish(domainEvent, ct);
-        }
-
-        venda.ClearDomainEvents();
     }
 
     private static VendaDto MapearParaDto(Domain.Aggregates.VendaAgregado venda)

@@ -11,18 +11,15 @@ public class CancelarVendaHandler : IRequestHandler<CancelarVendaCommand, Result
 {
     private readonly IVendaRepository _vendaRepository;
     private readonly IIdempotencyStore _idempotencyStore;
-    private readonly IMediator _mediator;
     private readonly ILogger<CancelarVendaHandler> _logger;
 
     public CancelarVendaHandler(
         IVendaRepository vendaRepository,
         IIdempotencyStore idempotencyStore,
-        IMediator mediator,
         ILogger<CancelarVendaHandler> logger)
     {
         _vendaRepository = vendaRepository;
         _idempotencyStore = idempotencyStore;
-        _mediator = mediator;
         _logger = logger;
     }
 
@@ -58,19 +55,12 @@ public class CancelarVendaHandler : IRequestHandler<CancelarVendaCommand, Result
         }
 
         //Persistir alterações (que salva eventos no outbox)
+        //Nota: Eventos serão publicados assincronamente pelo OutboxProcessor
         await _vendaRepository.AtualizarAsync(venda, ct);
 
         _logger.LogInformation(
             "Venda {VendaId} (Número: {NumeroVenda}) cancelada com sucesso",
             venda.Id, venda.NumeroVenda);
-
-        //Publicar eventos de domínio via MediatR
-        foreach (var domainEvent in venda.DomainEvents)
-        {
-            await _mediator.Publish(domainEvent, ct);
-        }
-
-        venda.ClearDomainEvents();
 
         //Salvar RequestId no IdempotencyStore
         await _idempotencyStore.SaveAsync(

@@ -21,7 +21,6 @@ public class CancelarVendaHandlerTests
     private readonly IPoliticaDesconto _politicaDesconto = new PoliticaDesconto();
     private readonly IVendaRepository _vendaRepository;
     private readonly IIdempotencyStore _idempotencyStore;
-    private readonly IMediator _mediator;
     private readonly ILogger<CancelarVendaHandler> _logger;
     private readonly CancelarVendaHandler _handler;
 
@@ -29,13 +28,11 @@ public class CancelarVendaHandlerTests
     {
         _vendaRepository = Substitute.For<IVendaRepository>();
         _idempotencyStore = Substitute.For<IIdempotencyStore>();
-        _mediator = Substitute.For<IMediator>();
         _logger = Substitute.For<ILogger<CancelarVendaHandler>>();
 
         _handler = new CancelarVendaHandler(
             _vendaRepository,
             _idempotencyStore,
-            _mediator,
             _logger);
     }
 
@@ -93,10 +90,7 @@ public class CancelarVendaHandlerTests
             vendaId,
             Arg.Any<CancellationToken>());
 
-        // Verifica que evento CompraCancelada foi publicado
-        await _mediator.Received().Publish(
-            Arg.Is<IDomainEvent>(e => e is CompraCancelada),
-            Arg.Any<CancellationToken>());
+        // Nota: Eventos são salvos no Outbox pelo Repository e publicados pelo OutboxProcessor
     }
 
     [Fact]
@@ -134,10 +128,6 @@ public class CancelarVendaHandlerTests
             Arg.Any<string>(),
             Arg.Any<Guid>(),
             Arg.Any<CancellationToken>());
-
-        await _mediator.DidNotReceive().Publish(
-            Arg.Any<IDomainEvent>(),
-            Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -167,10 +157,6 @@ public class CancelarVendaHandlerTests
 
         await _vendaRepository.DidNotReceive().AtualizarAsync(
             Arg.Any<VendaAgregado>(),
-            Arg.Any<CancellationToken>());
-
-        await _mediator.DidNotReceive().Publish(
-            Arg.Any<IDomainEvent>(),
             Arg.Any<CancellationToken>());
     }
 
@@ -221,99 +207,5 @@ public class CancelarVendaHandlerTests
             Arg.Any<string>(),
             Arg.Any<Guid>(),
             Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task Handle_ComSucesso_DevePublicarEventoCompraCancelada()
-    {
-        
-        var requestId = Guid.NewGuid();
-        var vendaId = Guid.NewGuid();
-        var clienteId = Guid.NewGuid();
-        var filialId = Guid.NewGuid();
-        var produtoId = Guid.NewGuid();
-
-        var vendaExistente = VendaAgregado.Criar(clienteId, filialId, _politicaDesconto);
-        vendaExistente.DefinirNumeroVenda(1);
-        vendaExistente.AdicionarItem(new ItemVenda(produtoId, 2, 100m, 0m));
-        vendaExistente.ClearDomainEvents();
-
-        // Usar reflexão para definir o Id
-        var idProperty = typeof(VendaAgregado).GetProperty("Id");
-        idProperty!.SetValue(vendaExistente, vendaId);
-
-        var command = new CancelarVendaCommand(
-            RequestId: requestId,
-            VendaId: vendaId
-        );
-
-        _idempotencyStore.ExistsAsync(requestId, Arg.Any<CancellationToken>())
-            .Returns(false);
-
-        _vendaRepository.ObterPorIdAsync(vendaId, Arg.Any<CancellationToken>())
-            .Returns(vendaExistente);
-
-        _vendaRepository.AtualizarAsync(Arg.Any<VendaAgregado>(), Arg.Any<CancellationToken>())
-            .Returns(Task.CompletedTask);
-
-        _idempotencyStore.SaveAsync(requestId, nameof(CancelarVendaCommand), vendaId, Arg.Any<CancellationToken>())
-            .Returns(Task.CompletedTask);
-
-        
-        var result = await _handler.Handle(command, CancellationToken.None);
-
-        
-        result.IsSuccess.Should().BeTrue();
-
-        // Verifica que evento CompraCancelada foi publicado
-        await _mediator.Received(1).Publish(
-            Arg.Is<CompraCancelada>(e => 
-                e.VendaId == vendaId &&
-                e.Motivo == "Cancelado pelo usuário"),
-            Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task Handle_ComSucesso_DeveLimparEventosDeDominio()
-    {
-        
-        var requestId = Guid.NewGuid();
-        var vendaId = Guid.NewGuid();
-        var clienteId = Guid.NewGuid();
-        var filialId = Guid.NewGuid();
-        var produtoId = Guid.NewGuid();
-
-        var vendaExistente = VendaAgregado.Criar(clienteId, filialId, _politicaDesconto);
-        vendaExistente.DefinirNumeroVenda(1);
-        vendaExistente.AdicionarItem(new ItemVenda(produtoId, 2, 100m, 0m));
-        vendaExistente.ClearDomainEvents();
-
-        // Usar reflexão para definir o Id
-        var idProperty = typeof(VendaAgregado).GetProperty("Id");
-        idProperty!.SetValue(vendaExistente, vendaId);
-
-        var command = new CancelarVendaCommand(
-            RequestId: requestId,
-            VendaId: vendaId
-        );
-
-        _idempotencyStore.ExistsAsync(requestId, Arg.Any<CancellationToken>())
-            .Returns(false);
-
-        _vendaRepository.ObterPorIdAsync(vendaId, Arg.Any<CancellationToken>())
-            .Returns(vendaExistente);
-
-        _vendaRepository.AtualizarAsync(Arg.Any<VendaAgregado>(), Arg.Any<CancellationToken>())
-            .Returns(Task.CompletedTask);
-
-        _idempotencyStore.SaveAsync(requestId, nameof(CancelarVendaCommand), vendaId, Arg.Any<CancellationToken>())
-            .Returns(Task.CompletedTask);
-
-        
-        var result = await _handler.Handle(command, CancellationToken.None);
-
-        
-        result.IsSuccess.Should().BeTrue();
-        vendaExistente.DomainEvents.Should().BeEmpty();
     }
 }
