@@ -70,6 +70,9 @@ public class VendaConfiguration : IEntityTypeConfiguration<VendaAgregado>
                 .IsRequired()
                 .HasPrecision(5, 2)
                 .HasColumnName("Desconto");
+
+            produtos.HasIndex(i => i.ProdutoId)
+                .HasDatabaseName("IX_ItensVenda_ProdutoId");
             
             // Ignorar propriedade calculada
             produtos.Ignore(i => i.Total);
