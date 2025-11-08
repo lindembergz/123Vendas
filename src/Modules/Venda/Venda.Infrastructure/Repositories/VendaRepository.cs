@@ -20,12 +20,14 @@ public class VendaRepository : IVendaRepository
     public async Task<VendaAgregado?> ObterPorIdAsync(Guid id, CancellationToken ct = default)
     {
         return await _context.Vendas
+            .Include(v => v.Produtos)
             .FirstOrDefaultAsync(v => v.Id == id, ct);
     }
     
     public async Task<List<VendaAgregado>> ListarAsync(CancellationToken ct = default)
     {
         return await _context.Vendas
+            .Include(v => v.Produtos)
             .AsNoTracking()
             .OrderByDescending(v => v.Data)
             .ToListAsync(ct);
@@ -66,6 +68,7 @@ public class VendaRepository : IVendaRepository
         
         //Aplicar paginação e ordenação
         var items = await query
+            .Include(v => v.Produtos)
             .OrderByDescending(v => v.Data)
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
