@@ -175,6 +175,157 @@ O projeto usa **SQLite** (arquivo `vendas.db`) com configuração zero:
 
 Basta executar `dotnet run` e o banco estará pronto para uso!
 
+## �  Especificação OpenAPI
+
+A API segue a especificação OpenAPI 3.0.3 completa, disponível em:
+- **Arquivo YAML**: [docs/openapi.yaml](docs/openapi.yaml)
+- **Swagger UI**: `https://localhost:5001/swagger` (quando a API estiver rodando)
+- **JSON**: `https://localhost:5001/swagger/v1/swagger.json` (gerado automaticamente)
+
+### Exemplos de Uso
+
+#### Criar Venda (POST /api/v1/vendas)
+
+**Request:**
+```bash
+curl -X POST https://localhost:5001/api/v1/vendas \
+  -H "Content-Type: application/json" \
+  -d '{
+    "clienteId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+    "filialId": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+    "itens": [
+      {
+        "produtoId": "a1b2c3d4-5678-90ab-cdef-1234567890ab",
+        "quantidade": 5,
+        "valorUnitario": 100.00,
+        "desconto": 50.00,
+        "total": 450.00
+      }
+    ]
+  }'
+```
+
+**Response (201 Created):**
+```json
+"3fa85f64-5717-4562-b3fc-2c963f66afa6"
+```
+```
+Location: /api/v1/vendas/3fa85f64-5717-4562-b3fc-2c963f66afa6
+```
+
+#### Obter Venda (GET /api/v1/vendas/{id})
+
+**Request:**
+```bash
+curl https://localhost:5001/api/v1/vendas/3fa85f64-5717-4562-b3fc-2c963f66afa6
+```
+
+**Response (200 OK):**
+```json
+{
+  "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "numero": 1,
+  "data": "2025-11-09T10:30:00Z",
+  "clienteId": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+  "filialId": "a1b2c3d4-5678-90ab-cdef-1234567890ab",
+  "valorTotal": 450.00,
+  "status": "Confirmada",
+  "itens": [
+    {
+      "produtoId": "a1b2c3d4-5678-90ab-cdef-1234567890ab",
+      "quantidade": 5,
+      "valorUnitario": 100.00,
+      "desconto": 50.00,
+      "total": 450.00
+    }
+  ]
+}
+```
+
+#### Listar Vendas (GET /api/v1/vendas)
+
+**Request com filtros:**
+```bash
+curl "https://localhost:5001/api/v1/vendas?pageNumber=1&pageSize=10&status=Confirmada"
+```
+
+**Response (200 OK):**
+```json
+{
+  "items": [
+    {
+      "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+      "numero": 1,
+      "data": "2025-11-09T10:30:00Z",
+      "clienteId": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+      "filialId": "a1b2c3d4-5678-90ab-cdef-1234567890ab",
+      "valorTotal": 450.00,
+      "status": "Confirmada",
+      "itens": [...]
+    }
+  ],
+  "totalCount": 1,
+  "pageNumber": 1,
+  "pageSize": 10
+}
+```
+
+#### Atualizar Venda (PUT /api/v1/vendas/{id})
+
+**Request:**
+```bash
+curl -X PUT https://localhost:5001/api/v1/vendas/3fa85f64-5717-4562-b3fc-2c963f66afa6 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "itens": [
+      {
+        "produtoId": "a1b2c3d4-5678-90ab-cdef-1234567890ab",
+        "quantidade": 8,
+        "valorUnitario": 100.00,
+        "desconto": 80.00,
+        "total": 720.00
+      }
+    ]
+  }'
+```
+
+**Response (200 OK):**
+```json
+{
+  "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "numero": 1,
+  "data": "2025-11-09T10:30:00Z",
+  "valorTotal": 720.00,
+  "status": "Pendente",
+  "itens": [...]
+}
+```
+
+#### Cancelar Venda (DELETE /api/v1/vendas/{id})
+
+**Request:**
+```bash
+curl -X DELETE https://localhost:5001/api/v1/vendas/3fa85f64-5717-4562-b3fc-2c963f66afa6
+```
+
+**Response (204 No Content):**
+```
+(sem corpo de resposta)
+```
+
+#### Exemplo de Erro (400 Bad Request)
+
+**Response:**
+```json
+{
+  "type": "https://tools.ietf.org/html/rfc7231#section-6.5.1",
+  "title": "Erro ao criar venda",
+  "status": 400,
+  "detail": "Não é permitido vender mais de 20 unidades do mesmo produto",
+  "traceId": "00-4bf92f3577b34da6a3ce929d0e0e4736-00"
+}
+```
+
 ## 🛠️ Tecnologias e Padrões
 
 ### Stack Técnica
@@ -186,7 +337,7 @@ Basta executar `dotnet run` e o banco estará pronto para uso!
 - **FluentValidation**: Validação de comandos
 - **Serilog**: Logging estruturado (Console + File)
 - **Polly**: Resiliência (Circuit Breaker, Retry)
-- **Swagger/OpenAPI**: Documentação interativa
+- **Swagger/OpenAPI 3.0.3**: Documentação interativa completa
 
 ### Testes
 
@@ -321,30 +472,46 @@ Os 63 testes de integração cobrem:
 
 ## 📚 Documentação Adicional
 
-- Documento de Design.txt - Decisões arquiteturais detalhadas
+### Especificação da API
+- **[OpenAPI 3.0.3 Specification](docs/openapi.yaml)** - Especificação completa da API com schemas, exemplos e descrições detalhadas
+- **Swagger UI** - Documentação interativa disponível em `https://localhost:5001/swagger` quando a API estiver rodando
+
+### Especificações do Projeto
+- [Design Document](.kiro/specs/api-vendas-123vendas/design.md) - Decisões arquiteturais detalhadas
+- [Requirements Document](.kiro/specs/api-vendas-123vendas/requirements.md) - Requisitos funcionais e não-funcionais
+- [Implementation Tasks](.kiro/specs/api-vendas-123vendas/tasks.md) - Tarefas implementadas e checklist
 
 
 ### Endpoints da API
 
+A API possui documentação completa no formato OpenAPI 3.0.3. Veja [docs/openapi.yaml](docs/openapi.yaml) para especificação detalhada.
+
 #### Vendas
-- `POST /api/v1/vendas` - Criar nova venda
-  - **Sucesso**: 201 Created com Location header
-  - **Erro**: 400 Bad Request (validação/regra de negócio)
-- `GET /api/v1/vendas` - Listar todas as vendas
-  - **Sucesso**: 200 OK com lista paginada
-- `GET /api/v1/vendas/{id}` - Buscar venda por ID
-  - **Sucesso**: 200 OK com dados da venda
-  - **Erro**: 404 Not Found (venda não existe)
-- `PUT /api/v1/vendas/{id}` - Atualizar venda existente
-  - **Sucesso**: 200 OK com venda atualizada
-  - **Erro**: 404 Not Found ou 400 Bad Request
-- `DELETE /api/v1/vendas/{id}` - Cancelar venda
-  - **Sucesso**: 204 No Content
-  - **Erro**: 404 Not Found
+| Método | Endpoint | Descrição | Status |
+|--------|----------|-----------|--------|
+| POST | `/api/v1/vendas` | Criar nova venda | 201, 400, 500 |
+| GET | `/api/v1/vendas` | Listar vendas (com filtros e paginação) | 200, 500 |
+| GET | `/api/v1/vendas/{id}` | Obter venda por ID | 200, 404, 500 |
+| PUT | `/api/v1/vendas/{id}` | Atualizar venda existente | 200, 400, 404, 500 |
+| DELETE | `/api/v1/vendas/{id}` | Cancelar venda (soft delete) | 204, 404, 500 |
 
 #### Monitoramento
-- `GET /health` - Health check da aplicação
-- `GET /swagger` - Documentação OpenAPI
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| GET | `/health` | Health check completo (self, database, outbox) |
+| GET | `/ready` | Readiness probe (apenas self check) |
+| GET | `/live` | Liveness probe (self + database) |
+| GET | `/swagger` | Documentação interativa Swagger UI |
+
+#### Filtros Disponíveis (GET /api/v1/vendas)
+
+- `pageNumber`: Número da página (padrão: 1)
+- `pageSize`: Tamanho da página (padrão: 10, máximo: 100)
+- `clienteId`: Filtrar por ID do cliente (UUID)
+- `filialId`: Filtrar por ID da filial (UUID)
+- `status`: Filtrar por status (Pendente, Confirmada, Cancelada)
+- `dataInicio`: Data inicial do período (ISO 8601)
+- `dataFim`: Data final do período (ISO 8601)
 
 #### Respostas de Erro
 
@@ -354,6 +521,8 @@ Todos os endpoints retornam erros no formato **ProblemDetails** (RFC 7807) com:
 - `status`: Código HTTP
 - `detail`: Descrição específica
 - `traceId`: Identificador para rastreamento (sempre incluído)
+
+Veja exemplos completos na seção [Especificação OpenAPI](#-especificação-openapi).
 
 ## 🛡️ Tratamento de Erros
 

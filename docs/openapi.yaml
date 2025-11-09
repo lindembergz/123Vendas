@@ -1,0 +1,661 @@
+openapi: 3.0.3
+info:
+  title: 123Vendas API
+  version: 1.0.0
+  description: |
+    API RESTful para gerenciamento de vendas com arquitetura em camadas e eventos de domínio.
+    
+    ## Funcionalidades
+    - CRUD completo de vendas
+    - Regras de desconto automáticas baseadas em quantidade
+    - Eventos de domínio (CompraCriada, CompraAlterada, CompraCancelada)
+    - Validações com FluentValidation
+    - Health checks para monitoramento
+    
+    ## Regras de Desconto
+    - **< 4 itens iguais**: Sem desconto
+    - **4 a 9 itens iguais**: 10% de desconto
+    - **10 a 20 itens iguais**: 20% de desconto
+    - **> 20 itens iguais**: Venda não permitida
+    
+  contact:
+    name: 123Vendas Team
+
+servers:
+  - url: https://localhost:5001
+    description: Servidor de desenvolvimento
+  - url: http://localhost:5197
+    description: Servidor de desenvolvimento (HTTP)
+
+tags:
+  - name: Vendas
+    description: Operações de gerenciamento de vendas
+  - name: Monitoramento
+    description: Health checks e monitoramento da aplicação
+
+paths:
+  /api/v1/vendas:
+    post:
+      tags:
+        - Vendas
+      summary: Criar nova venda
+      description: |
+        Cria uma nova venda com os itens especificados.
+        
+        **Regras de negócio:**
+        - ClienteId e FilialId devem existir
+        - Cada item deve ter quantidade > 0
+        - Desconto é calculado automaticamente baseado na quantidade
+        - Não é permitido vender mais de 20 unidades do mesmo produto
+      operationId: criarVenda
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CriarVendaRequest'
+            examples:
+              vendaSemDesconto:
+                summary: Venda sem desconto (< 4 itens)
+                value:
+                  clienteId: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                  filialId: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+                  itens:
+                    - produtoId: "a1b2c3d4-5678-90ab-cdef-1234567890ab"
+                      quantidade: 3
+                      valorUnitario: 100.00
+                      desconto: 0
+                      total: 300.00
+              vendaComDesconto10:
+                summary: Venda com 10% desconto (4-9 itens)
+                value:
+                  clienteId: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                  filialId: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+                  itens:
+                    - produtoId: "a1b2c3d4-5678-90ab-cdef-1234567890ab"
+                      quantidade: 5
+                      valorUnitario: 100.00
+                      desconto: 50.00
+                      total: 450.00
+              vendaComDesconto20:
+                summary: Venda com 20% desconto (10-20 itens)
+                value:
+                  clienteId: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                  filialId: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+                  itens:
+                    - produtoId: "a1b2c3d4-5678-90ab-cdef-1234567890ab"
+                      quantidade: 10
+                      valorUnitario: 100.00
+                      desconto: 200.00
+                      total: 800.00
+      responses:
+        '201':
+          description: Venda criada com sucesso
+          headers:
+            Location:
+              description: URI da venda criada
+              schema:
+                type: string
+                example: /api/v1/vendas/3fa85f64-5717-4562-b3fc-2c963f66afa6
+          content:
+            application/json:
+              schema:
+                type: string
+                format: uuid
+              example: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+        '400':
+          description: Erro de validação ou regra de negócio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                validacao:
+                  summary: Erro de validação
+                  value:
+                    type: "https://tools.ietf.org/html/rfc7231#section-6.5.1"
+                    title: "Erro de validação"
+                    status: 400
+                    detail: "ClienteId é obrigatório"
+                    traceId: "00-4bf92f3577b34da6a3ce929d0e0e4736-00"
+                regraNegocio:
+                  summary: Regra de negócio violada
+                  value:
+                    type: "https://tools.ietf.org/html/rfc7231#section-6.5.1"
+                    title: "Erro ao criar venda"
+                    status: 400
+                    detail: "Não é permitido vender mais de 20 unidades do mesmo produto"
+                    traceId: "00-4bf92f3577b34da6a3ce929d0e0e4736-00"
+        '500':
+          description: Erro interno do servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+    get:
+      tags:
+        - Vendas
+      summary: Listar vendas
+      description: |
+        Lista vendas com suporte a filtros e paginação.
+        
+        **Filtros disponíveis:**
+        - ClienteId: Filtrar por cliente
+        - FilialId: Filtrar por filial
+        - Status: Filtrar por status (Pendente, Confirmada, Cancelada)
+        - DataInicio/DataFim: Filtrar por período
+      operationId: listarVendas
+      parameters:
+        - name: pageNumber
+          in: query
+          description: Número da página (padrão 1)
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          description: Tamanho da página (padrão 10, máximo 100)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+        - name: clienteId
+          in: query
+          description: Filtrar por ID do cliente
+          schema:
+            type: string
+            format: uuid
+        - name: filialId
+          in: query
+          description: Filtrar por ID da filial
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          description: Filtrar por status da venda
+          schema:
+            type: string
+            enum: [Pendente, Confirmada, Cancelada]
+        - name: dataInicio
+          in: query
+          description: Data inicial do período (formato ISO 8601)
+          schema:
+            type: string
+            format: date-time
+        - name: dataFim
+          in: query
+          description: Data final do período (formato ISO 8601)
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Lista de vendas retornada com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedResultVendaDto'
+              example:
+                items:
+                  - id: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                    numero: 1
+                    data: "2025-11-09T10:30:00Z"
+                    clienteId: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+                    filialId: "a1b2c3d4-5678-90ab-cdef-1234567890ab"
+                    valorTotal: 450.00
+                    status: "Confirmada"
+                    itens:
+                      - produtoId: "b2c3d4e5-6789-01bc-def1-234567890abc"
+                        quantidade: 5
+                        valorUnitario: 100.00
+                        desconto: 50.00
+                        total: 450.00
+                totalCount: 1
+                pageNumber: 1
+                pageSize: 10
+        '500':
+          description: Erro interno do servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /api/v1/vendas/{id}:
+    get:
+      tags:
+        - Vendas
+      summary: Obter venda por ID
+      description: Retorna os detalhes de uma venda específica
+      operationId: obterVendaPorId
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID da venda
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Venda encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendaDto'
+              example:
+                id: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+                numero: 1
+                data: "2025-11-09T10:30:00Z"
+                clienteId: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+                filialId: "a1b2c3d4-5678-90ab-cdef-1234567890ab"
+                valorTotal: 450.00
+                status: "Confirmada"
+                itens:
+                  - produtoId: "b2c3d4e5-6789-01bc-def1-234567890abc"
+                    quantidade: 5
+                    valorUnitario: 100.00
+                    desconto: 50.00
+                    total: 450.00
+        '404':
+          description: Venda não encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: "https://tools.ietf.org/html/rfc7231#section-6.5.4"
+                title: "Venda não encontrada"
+                status: 404
+                detail: "Venda com ID 3fa85f64-5717-4562-b3fc-2c963f66afa6 não foi encontrada"
+                traceId: "00-4bf92f3577b34da6a3ce929d0e0e4736-00"
+        '500':
+          description: Erro interno do servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+    put:
+      tags:
+        - Vendas
+      summary: Atualizar venda
+      description: |
+        Atualiza os itens de uma venda existente.
+        
+        **Regras:**
+        - Apenas vendas com status "Pendente" podem ser atualizadas
+        - Os itens são substituídos completamente
+        - Descontos são recalculados automaticamente
+        - Gera evento CompraAlterada
+      operationId: atualizarVenda
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID da venda
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AtualizarVendaRequest'
+            example:
+              itens:
+                - produtoId: "a1b2c3d4-5678-90ab-cdef-1234567890ab"
+                  quantidade: 8
+                  valorUnitario: 100.00
+                  desconto: 80.00
+                  total: 720.00
+      responses:
+        '200':
+          description: Venda atualizada com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendaDto'
+        '400':
+          description: Erro de validação ou regra de negócio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Venda não encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '500':
+          description: Erro interno do servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+    delete:
+      tags:
+        - Vendas
+      summary: Cancelar venda
+      description: |
+        Cancela uma venda existente (soft delete).
+        
+        **Comportamento:**
+        - Altera status para "Cancelada"
+        - Não remove fisicamente do banco
+        - Gera evento CompraCancelada
+        - Pode ser revertido se necessário
+      operationId: cancelarVenda
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID da venda
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Venda cancelada com sucesso
+        '404':
+          description: Venda não encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '500':
+          description: Erro interno do servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /health:
+    get:
+      tags:
+        - Monitoramento
+      summary: Health check completo
+      description: |
+        Verifica a saúde da aplicação e suas dependências.
+        
+        **Checks realizados:**
+        - self: API está respondendo
+        - sqlite: Banco de dados está acessível
+        - outbox: OutboxProcessor está funcionando
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Status de saúde da aplicação
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthCheckResponse'
+              example:
+                status: "Healthy"
+                checks:
+                  - name: "self"
+                    status: "Healthy"
+                    description: "API está respondendo"
+                    duration: 0.5
+                    data: {}
+                  - name: "sqlite"
+                    status: "Healthy"
+                    description: null
+                    duration: 15.2
+                    data: {}
+                  - name: "outbox"
+                    status: "Healthy"
+                    description: "Outbox está processando eventos"
+                    duration: 8.7
+                    data:
+                      pendingEvents: 0
+                      lastProcessedAt: "2025-11-09T10:25:00Z"
+                totalDuration: 24.4
+
+  /ready:
+    get:
+      tags:
+        - Monitoramento
+      summary: Readiness probe
+      description: Verifica se a aplicação está pronta para receber requisições (apenas self check)
+      operationId: readinessCheck
+      responses:
+        '200':
+          description: Aplicação está pronta
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "Healthy"
+
+  /live:
+    get:
+      tags:
+        - Monitoramento
+      summary: Liveness probe
+      description: Verifica se a aplicação está viva (self + database)
+      operationId: livenessCheck
+      responses:
+        '200':
+          description: Aplicação está viva
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "Healthy"
+
+components:
+  schemas:
+    CriarVendaRequest:
+      type: object
+      required:
+        - clienteId
+        - filialId
+        - itens
+      properties:
+        clienteId:
+          type: string
+          format: uuid
+          description: ID do cliente
+          example: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+        filialId:
+          type: string
+          format: uuid
+          description: ID da filial
+          example: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+        itens:
+          type: array
+          description: Lista de itens da venda
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/ItemVendaDto'
+
+    AtualizarVendaRequest:
+      type: object
+      required:
+        - itens
+      properties:
+        itens:
+          type: array
+          description: Nova lista de itens (substitui completamente)
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/ItemVendaDto'
+
+    VendaDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: ID único da venda
+          example: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+        numero:
+          type: integer
+          description: Número sequencial da venda
+          example: 1
+        data:
+          type: string
+          format: date-time
+          description: Data e hora da venda
+          example: "2025-11-09T10:30:00Z"
+        clienteId:
+          type: string
+          format: uuid
+          description: ID do cliente
+          example: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+        filialId:
+          type: string
+          format: uuid
+          description: ID da filial
+          example: "a1b2c3d4-5678-90ab-cdef-1234567890ab"
+        valorTotal:
+          type: number
+          format: decimal
+          description: Valor total da venda (com descontos aplicados)
+          example: 450.00
+        status:
+          type: string
+          enum: [Pendente, Confirmada, Cancelada]
+          description: Status atual da venda
+          example: "Confirmada"
+        itens:
+          type: array
+          description: Lista de itens da venda
+          items:
+            $ref: '#/components/schemas/ItemVendaDto'
+
+    ItemVendaDto:
+      type: object
+      required:
+        - produtoId
+        - quantidade
+        - valorUnitario
+        - desconto
+        - total
+      properties:
+        produtoId:
+          type: string
+          format: uuid
+          description: ID do produto
+          example: "a1b2c3d4-5678-90ab-cdef-1234567890ab"
+        quantidade:
+          type: integer
+          minimum: 1
+          maximum: 20
+          description: Quantidade do produto (máximo 20)
+          example: 5
+        valorUnitario:
+          type: number
+          format: decimal
+          minimum: 0.01
+          description: Valor unitário do produto
+          example: 100.00
+        desconto:
+          type: number
+          format: decimal
+          minimum: 0
+          description: Valor total do desconto aplicado
+          example: 50.00
+        total:
+          type: number
+          format: decimal
+          minimum: 0
+          description: Valor total do item (quantidade * valorUnitario - desconto)
+          example: 450.00
+
+    PagedResultVendaDto:
+      type: object
+      properties:
+        items:
+          type: array
+          description: Lista de vendas da página atual
+          items:
+            $ref: '#/components/schemas/VendaDto'
+        totalCount:
+          type: integer
+          description: Total de registros encontrados
+          example: 50
+        pageNumber:
+          type: integer
+          description: Número da página atual
+          example: 1
+        pageSize:
+          type: integer
+          description: Tamanho da página
+          example: 10
+
+    ProblemDetails:
+      type: object
+      description: Formato padrão de erro (RFC 7807)
+      properties:
+        type:
+          type: string
+          description: URI que identifica o tipo de erro
+          example: "https://tools.ietf.org/html/rfc7231#section-6.5.1"
+        title:
+          type: string
+          description: Resumo do erro
+          example: "Erro ao criar venda"
+        status:
+          type: integer
+          description: Código de status HTTP
+          example: 400
+        detail:
+          type: string
+          description: Descrição específica do erro
+          example: "Não é permitido vender mais de 20 unidades do mesmo produto"
+        traceId:
+          type: string
+          description: ID de rastreamento para correlação de logs
+          example: "00-4bf92f3577b34da6a3ce929d0e0e4736-00"
+
+    HealthCheckResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [Healthy, Degraded, Unhealthy]
+          description: Status geral da aplicação
+          example: "Healthy"
+        checks:
+          type: array
+          description: Lista de checks individuais
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+                example: "sqlite"
+              status:
+                type: string
+                enum: [Healthy, Degraded, Unhealthy]
+                example: "Healthy"
+              description:
+                type: string
+                nullable: true
+                example: "Database is accessible"
+              duration:
+                type: number
+                description: Duração do check em milissegundos
+                example: 15.2
+              data:
+                type: object
+                description: Dados adicionais do check
+                additionalProperties: true
+        totalDuration:
+          type: number
+          description: Duração total de todos os checks em milissegundos
+          example: 24.4
