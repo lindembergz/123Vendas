@@ -13,6 +13,7 @@ public class VendaDbContext : DbContext
     public DbSet<VendaAgregado> Vendas => Set<VendaAgregado>();
     public DbSet<OutboxEvent> OutboxEvents => Set<OutboxEvent>();
     public DbSet<IdempotencyKey> IdempotencyKeys => Set<IdempotencyKey>();
+    public DbSet<NumeroVendaSequence> NumeroVendaSequences => Set<NumeroVendaSequence>();
     
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

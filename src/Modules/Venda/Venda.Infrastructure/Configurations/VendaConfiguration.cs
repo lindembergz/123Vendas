@@ -78,9 +78,12 @@ public class VendaConfiguration : IEntityTypeConfiguration<VendaAgregado>
             produtos.Ignore(i => i.Total);
         });
         
-        // Índices para performance
+        // Índices para performance em queries de filtro e ordenação
         builder.HasIndex(v => v.ClienteId)
             .HasDatabaseName("IX_Vendas_ClienteId");
+        
+        builder.HasIndex(v => v.FilialId)
+            .HasDatabaseName("IX_Vendas_FilialId");
         
         builder.HasIndex(v => v.Data)
             .HasDatabaseName("IX_Vendas_Data");
@@ -88,8 +91,20 @@ public class VendaConfiguration : IEntityTypeConfiguration<VendaAgregado>
         builder.HasIndex(v => v.Status)
             .HasDatabaseName("IX_Vendas_Status");
         
-        // Índice composto para queries comuns
+        // Índices compostos para queries comuns (otimizam filtros combinados)
         builder.HasIndex(v => new { v.ClienteId, v.Data })
             .HasDatabaseName("IX_Vendas_ClienteId_Data");
+        
+        builder.HasIndex(v => new { v.FilialId, v.Data })
+            .HasDatabaseName("IX_Vendas_FilialId_Data");
+        
+        builder.HasIndex(v => new { v.FilialId, v.Status })
+            .HasDatabaseName("IX_Vendas_FilialId_Status");
+        
+        // CRÍTICO: Índice único composto para prevenir duplicação de números por filial
+        // Este índice também otimiza ObterUltimoNumeroPorFilialAsync
+        builder.HasIndex(v => new { v.FilialId, v.NumeroVenda })
+            .IsUnique()
+            .HasDatabaseName("IX_Vendas_FilialId_NumeroVenda_Unique");
     }
 }

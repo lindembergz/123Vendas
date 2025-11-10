@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Venda.Domain.Aggregates;
 using Venda.Domain.Interfaces;
 using Venda.Infrastructure.Data;
+using Venda.Infrastructure.Entities;
 using Venda.Infrastructure.Interfaces;
 
 namespace Venda.Infrastructure.Repositories;
@@ -82,23 +83,53 @@ public class VendaRepository : IVendaRepository
         if (venda == null)
             throw new ArgumentNullException(nameof(venda));
         
-        //Gerar número sequencial por filial ANTES de adicionar
-        var ultimoNumero = await ObterUltimoNumeroPorFilialAsync(venda.FilialId, ct);
-        var novoNumero = ultimoNumero + 1;
-        venda.DefinirNumeroVenda(novoNumero);
+        const int maxRetries = 3;
+        var retryCount = 0;
         
-        await _context.Vendas.AddAsync(venda, ct);
-        
-        //Adicionar eventos ao outbox na mesma transação
-        foreach (var evento in venda.DomainEvents)
+        while (retryCount < maxRetries)
         {
-            await _outboxService.AdicionarEventoAsync(evento, ct);
+            try
+            {
+                // Gerar número sequencial de forma thread-safe
+                var novoNumero = await ObterProximoNumeroVendaAsync(venda.FilialId, ct);
+                venda.DefinirNumeroVenda(novoNumero);
+                
+                await _context.Vendas.AddAsync(venda, ct);
+                
+                // Adicionar eventos ao outbox na mesma transação
+                foreach (var evento in venda.DomainEvents)
+                {
+                    await _outboxService.AdicionarEventoAsync(evento, ct);
+                }
+                
+                await _context.SaveChangesAsync(ct);
+                
+                // Limpar eventos após persistir
+                venda.ClearDomainEvents();
+                
+                return; // Sucesso
+            }
+            catch (DbUpdateException ex) when (ex.InnerException?.Message.Contains("UNIQUE constraint failed") == true 
+                                               || ex.InnerException?.Message.Contains("IX_Vendas_FilialId_NumeroVenda_Unique") == true)
+            {
+                // Violação de constraint única - número duplicado (race condition extremamente rara)
+                retryCount++;
+                
+                if (retryCount >= maxRetries)
+                {
+                    throw new InvalidOperationException(
+                        $"Falha ao criar venda após {maxRetries} tentativas devido a conflito de número sequencial. " +
+                        $"FilialId: {venda.FilialId}", ex);
+                }
+                
+                // Limpar o contexto e tentar novamente
+                _context.ChangeTracker.Clear();
+                venda.ClearDomainEvents(); // Limpar eventos para não duplicar
+                
+                // Aguardar antes de tentar novamente
+                await Task.Delay(TimeSpan.FromMilliseconds(50 * retryCount), ct);
+            }
         }
-        
-        await _context.SaveChangesAsync(ct);
-        
-        //Limpar eventos após persistir
-        venda.ClearDomainEvents();
     }
     
     public async Task AtualizarAsync(VendaAgregado venda, CancellationToken ct = default)
@@ -129,11 +160,81 @@ public class VendaRepository : IVendaRepository
     
     public async Task<int> ObterUltimoNumeroPorFilialAsync(Guid filialId, CancellationToken ct = default)
     {
+        // OBSOLETO: Este método não deve mais ser usado diretamente.
+        // Use ObterProximoNumeroVendaAsync para geração thread-safe.
         var ultimoNumero = await _context.Vendas
             .AsNoTracking()
             .Where(v => v.FilialId == filialId)
             .MaxAsync(v => (int?)v.NumeroVenda, ct);
         
         return ultimoNumero ?? 0;
+    }
+    
+    /// <summary>
+    /// Obtém o próximo número de venda de forma atômica e thread-safe usando controle de concorrência otimista.
+    /// Previne condições de corrida em ambientes com múltiplas requisições concorrentes.
+    /// </summary>
+    /// <param name="filialId">ID da filial</param>
+    /// <param name="ct">Token de cancelamento</param>
+    /// <returns>Próximo número sequencial disponível</returns>
+    /// <exception cref="InvalidOperationException">Quando há falha após múltiplas tentativas de retry</exception>
+    private async Task<int> ObterProximoNumeroVendaAsync(Guid filialId, CancellationToken ct = default)
+    {
+        const int maxRetries = 5;
+        var retryCount = 0;
+        
+        while (retryCount < maxRetries)
+        {
+            try
+            {
+                // Buscar ou criar a sequência para a filial
+                var sequence = await _context.NumeroVendaSequences
+                    .FirstOrDefaultAsync(s => s.FilialId == filialId, ct);
+                
+                if (sequence == null)
+                {
+                    // Primeira venda da filial - criar sequência
+                    sequence = new NumeroVendaSequence
+                    {
+                        FilialId = filialId,
+                        UltimoNumero = 0,
+                        Versao = 0
+                    };
+                    await _context.NumeroVendaSequences.AddAsync(sequence, ct);
+                }
+                
+                // Incrementar o número e a versão
+                sequence.UltimoNumero++;
+                sequence.Versao++;
+                var proximoNumero = sequence.UltimoNumero;
+                
+                // Salvar com controle de concorrência otimista
+                // Se houver conflito, DbUpdateConcurrencyException será lançada
+                await _context.SaveChangesAsync(ct);
+                
+                return proximoNumero;
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                // Conflito de concorrência - outra thread atualizou a sequência
+                retryCount++;
+                
+                if (retryCount >= maxRetries)
+                {
+                    throw new InvalidOperationException(
+                        $"Falha ao obter próximo número de venda após {maxRetries} tentativas. " +
+                        $"FilialId: {filialId}");
+                }
+                
+                // Limpar o contexto e tentar novamente
+                _context.ChangeTracker.Clear();
+                
+                // Aguardar um tempo exponencial antes de tentar novamente
+                await Task.Delay(TimeSpan.FromMilliseconds(Math.Pow(2, retryCount) * 10), ct);
+            }
+        }
+        
+        throw new InvalidOperationException(
+            $"Falha inesperada ao obter próximo número de venda. FilialId: {filialId}");
     }
 }
