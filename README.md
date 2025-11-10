@@ -8,13 +8,13 @@ Sistema de vendas com CRUD completo, regras de negócio centralizadas e eventos 
 
 ### Funcionalidades Principais
 
-- ✅ **CRUD de Vendas**: Criar, listar, atualizar e cancelar vendas
-- ✅ **Regras de Desconto**: Descontos automáticos baseados em quantidade
-- ✅ **Eventos de Domínio**: CompraCriada, CompraAlterada, CompraCancelada, ItemCancelado
-- ✅ **Validações**: FluentValidation para comandos
-- ✅ **Logs Estruturados**: Serilog com JSON
-- ✅ **Health Checks**: Monitoramento de saúde da aplicação
-- ✅ **Testes**: 204 testes (unitários, aplicação e integração)
+- **CRUD de Vendas**: Criar, listar, atualizar e cancelar vendas
+- **Regras de Desconto**: Descontos automáticos baseados em quantidade
+- **Eventos de Domínio**: CompraCriada, CompraAlterada, CompraCancelada, ItemCancelado
+- **Validações**: FluentValidation para comandos
+- **Logs Estruturados**: Serilog com JSON
+- **Health Checks**: Monitoramento de saúde da aplicação
+- **Testes**: 204 testes (unitários, aplicação e integração)
 
 ### Regras de Negócio
 
@@ -27,33 +27,26 @@ Sistema de vendas com CRUD completo, regras de negócio centralizadas e eventos 
 
 - **Clean Code**: Código limpo e legível
 - **SOLID**: Princípios de design orientado a objetos
+      -SRP: Cada classe tem uma única responsabilidade. `PoliticaDesconto` isolada do agregado. 
+      -OCP: IPoliticaDesconto permite novas políticas sem modificar código existente. 
+      -LSP: Interfaces bem definidas, implementações substituíveis. 
+      -ISP: Interfaces pequenas e focadas IClienteService, IProdutoService). 
+      -DIP:  Domain não depende de Infrastructure. Abstrações no Domain, implementações na Infrastructure. 
 - **DRY**: Don't Repeat Yourself
 - **YAGNI**: You Aren't Gonna Need It
 - **Object Calisthenics**: Regras para código mais expressivo
+- **DDD** :
+    - Aggregate Root: VendaAgregado controla acesso aos ItemVenda
+    - Value Objects: ItemVenda é imutável (record) sem identidade própria
+    - Domain Events: CompraCriada, CompraAlterada, CompraCancelada, ItemCancelado
+    - Ubiquitous Language: Termos de negócio no código
+    - Bounded Contexts: Módulos Venda, CRM e Estoque
 
 ## 🏗️ Estrutura do Projeto
 
 
-123Vendas.sln
-├── src/
-│   ├── 123Vendas.Api/                          → API Layer (Minimal APIs)
-│   ├── 123Vendas.Shared/                       → Shared components
-│   ├── 123Vendas.Demo/                         → Console para demonstracao
-│   └── Modules/
-│       ├── Venda/
-│       │   ├── Venda.Domain/                   → Domain Layer
-│       │   ├── Venda.Application/              → Application Layer (CQRS)
-│       │   └── Venda.Infrastructure/           → Infrastructure Layer (EF Core)
-│       ├── Estoque/
-│       │   └── Estoque.Application/            → Simulated module
-│       └── CRM/
-│           └── CRM.Application/                → Simulated module
-└── tests/
-    ├── Shared.Tests/                           → Shared components tests
-    ├── Venda.Domain.Tests/                     → Domain unit tests (47 tests)
-    ├── Venda.Application.Tests/                → Application tests (49 tests)
-    ├── Venda.Infrastructure.Tests/             → Infrastructure tests (27 tests)
-    └── Venda.Integration.Tests/                → Integration tests (63 tests)
+<img width="313" height="758" alt="image" src="https://github.com/user-attachments/assets/2c3ea2b2-533a-4adb-8589-e706411ec30a" />
+
 
 
 ## 🏛️ Decisões Arquiteturais
@@ -95,8 +88,7 @@ Separação clara entre comandos (escrita) e queries (leitura):
 
 1. **Clone o repositório**   
    
-   git clone <repository-url>
-   cd 123Vendas/API   
+   git clone https://github.com/lindembergz/123Vendas
 
 2. **Restaurar dependências**
 
@@ -111,14 +103,50 @@ Separação clara entre comandos (escrita) e queries (leitura):
    - **Swagger UI**: `https://localhost:5001/swagger` - Documentação interativa
    - **Health Check**: `https://localhost:5001/health` - Status da aplicação
    - **Endpoints**: `https://localhost:5001/api/v1/vendas` - API de vendas
+  
+     **Criar Venda com Desconto**
+     
+     **Endpoint**: POST /api/v1/vendas
+     
+     **Payload:**
+          {
+            "clienteId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+            "filialId": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+            "itens": [
+              {
+                "produtoId": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
+                "quantidade": 10,
+                "valorUnitario": 100.00
+              }
+            ]
+          }
+      - 10 unidades = 20% de desconto automático
+      - ValorTotal = 10 × 100 × 0.8 = R$ 800,00
+      - Evento `CompraCriada` gerado automaticamente
+      - Número sequencial gerado por filial
+    
+     **Listar Vendas**
+     
+     **Endpoint**: GET /api/v1/vendas
+     
+     **Demonstrar:**
+      - Paginação (pageNumber, pageSize)
+      - Filtros (clienteId, filialId, status, dataInicio, dataFim)
+      - Ordenação por data (mais recentes primeiro)
+  
 
 5. **Executar Testes**
 
     dotnet test
+   
     dotnet test tests/Venda.Domain.Tests
+   
     dotnet test tests/Venda.Application.Tests
+   
     dotnet test tests/Venda.Infrastructure.Tests
+   
     dotnet test tests/Venda.Integration.Tests
+   
     dotnet test tests/Shared.Tests
 
 5. **Executar Demo (Opcional)**
@@ -126,6 +154,9 @@ Separação clara entre comandos (escrita) e queries (leitura):
    dotnet run --project src/123Vendas.Demo
 
    Console interativo demonstrando funcionalidades da API
+
+   <img width="779" height="574" alt="image" src="https://github.com/user-attachments/assets/bc5dfec9-c58b-4168-b9db-6a2d1d103703" />
+
 
 ### Banco de Dados
 
@@ -330,12 +361,6 @@ Vantagens do SQLite in-memory (usado atualmente):
 - Isolamento perfeito entre testes
 - Funciona em qualquer ambiente (CI/CD, Windows, Linux, Mac)
 
-Quando Testcontainers seria útil:
-
-- Se estivesse usando PostgreSQL, SQL Server ou outro banco em produção;
-- Para testar features específicas do banco de dados de produção;
-- Para testes com Redis, RabbitMQ, ou outros serviços externos.
-
 ### Padrões Arquiteturais
 - **Clean Architecture**: Separação clara de responsabilidades em camadas
 - **Modular Monolith**: Módulos independentes (Venda, CRM, Estoque) preparados para microserviços
@@ -358,16 +383,20 @@ dotnet test /p:CollectCoverage=true
 - 18 testes compartilhados (Shared)
 - 27 testes de infraestrutura (Infrastructure)
 
+<img width="696" height="322" alt="image" src="https://github.com/user-attachments/assets/2bef8e5b-78bb-4b04-947c-c3b1b02985f6" />
+
+
 ### Distribuição dos Testes
 
 | Categoria | Quantidade | Descrição |
 |-----------|------------|-----------|
+| **API**    |  14 | Testes de tratamento de exceções | 
 | **Domain** | 47 | Testes unitários de entidades, value objects e regras de negócio |
 | **Application** | 49 | Testes de handlers (23), validators (19) e services (7) |
 | **Infrastructure** | 27 | Testes de repositórios, outbox pattern e persistência |
 | **Integration** | 63 | Testes end-to-end dos endpoints da API e infraestrutura |
 | **Shared** | 18 | Testes de componentes compartilhados, integração e services |
-| **Total** | **204** | **100% de aprovação** |
+| **Total** | **218** | **100% de aprovação** |
 
 
 ### Implementação dos Testes de Integração
@@ -453,6 +482,7 @@ Os 63 testes de integração cobrem:
 - [Requirements Document](.kiro/specs/api-vendas-123vendas/requirements.md) - Requisitos funcionais e não-funcionais
 - [Implementation Tasks](.kiro/specs/api-vendas-123vendas/tasks.md) - Tarefas implementadas e checklist
 
+
 ### Endpoints da API
 
 A API possui documentação completa no formato OpenAPI 3.0.3. Veja [docs/openapi.yaml](docs/openapi.yaml) para especificação detalhada.
@@ -501,18 +531,18 @@ A API implementa um sistema robusto de tratamento de erros que combina duas abor
 
 ### Result Pattern (Erros de Negócio)
 Erros previsíveis de regras de negócio são tratados via **Result Pattern**, sem uso de exceções:
-- ✅ Validações de entrada
-- ✅ Regras de negócio violadas
-- ✅ Recursos não encontrados
-- ✅ Retorna status 400 (Bad Request) ou 404 (Not Found)
+-  Validações de entrada
+-  Regras de negócio violadas
+-  Recursos não encontrados
+-  Retorna status 400 (Bad Request) ou 404 (Not Found)
 
 ### Global Exception Filter (Erros Técnicos)
 Exceções técnicas inesperadas são capturadas automaticamente por um **Exception Filter centralizado**:
-- ✅ Falhas de banco de dados (DbUpdateException) → 500
-- ✅ Timeouts de operação (TimeoutException) → 504
-- ✅ Erros de comunicação externa (HttpRequestException) → 502
-- ✅ Requisições canceladas (TaskCanceledException) → 499
-- ✅ Exceções genéricas → 500
+-  Falhas de banco de dados (DbUpdateException) → 500
+-  Timeouts de operação (TimeoutException) → 504
+-  Erros de comunicação externa (HttpRequestException) → 502
+-  Requisições canceladas (TaskCanceledException) → 499
+-  Exceções genéricas → 500
 
 ### Formato de Resposta (RFC 7807)
 
@@ -547,11 +577,11 @@ Todas as respostas de erro seguem o padrão **ProblemDetails** (RFC 7807):
 
 ### Benefícios
 
-- ✅ **Código limpo**: Endpoints sem blocos try/catch duplicados
-- ✅ **Consistência**: Todas as respostas de erro seguem o mesmo formato
-- ✅ **Observabilidade**: Logs estruturados com TraceId para rastreamento
-- ✅ **Segurança**: Proteção contra vazamento de informações sensíveis
-- ✅ **Manutenibilidade**: Tratamento centralizado em um único ponto
+-  **Código limpo**: Endpoints sem blocos try/catch duplicados
+-  **Consistência**: Todas as respostas de erro seguem o mesmo formato
+-  **Observabilidade**: Logs estruturados com TraceId para rastreamento
+-  **Segurança**: Proteção contra vazamento de informações sensíveis
+-  **Manutenibilidade**: Tratamento centralizado em um único ponto
 
 ## Logs
 
@@ -564,12 +594,12 @@ Formato estruturado com propriedades JSON para facilitar análise.
 ### Logging de Exceções
 
 Todas as exceções técnicas são logadas automaticamente com:
-- ✅ Tipo da exceção
-- ✅ Mensagem de erro
-- ✅ Stack trace completo
-- ✅ TraceId para correlação
-- ✅ Path da requisição HTTP
-- ✅ Timestamp
+-  Tipo da exceção
+-  Mensagem de erro
+-  Stack trace completo
+-  TraceId para correlação
+-  Path da requisição HTTP
+-  Timestamp
 
 ## 🎯 Destaques do Projeto
 
