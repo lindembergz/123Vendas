@@ -178,7 +178,8 @@ Basta executar `dotnet run` e o banco estará pronto para uso!
 ## �  Especificação OpenAPI
 
 A API segue a especificação OpenAPI 3.0.3 completa, disponível em:
-- **Arquivo YAML**: [docs/openapi.yaml](docs/openapi.yaml)
+- **Arquivo YAML**: [docs/openapi.yaml](docs/openapi.yaml) - Especificação completa
+- **Guia Rápido**: [docs/OPENAPI-QUICK-REFERENCE.md](docs/OPENAPI-QUICK-REFERENCE.md) - Referência visual e exemplos
 - **Swagger UI**: `https://localhost:5001/swagger` (quando a API estiver rodando)
 - **JSON**: `https://localhost:5001/swagger/v1/swagger.json` (gerado automaticamente)
 
