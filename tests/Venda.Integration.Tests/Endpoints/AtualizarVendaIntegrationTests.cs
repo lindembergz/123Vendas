@@ -167,7 +167,7 @@ public class AtualizarVendaIntegrationTests : IClassFixture<CustomWebApplication
         
         var content = await response.Content.ReadAsStringAsync();
         content.Should().NotBeNullOrEmpty();
-        content.Should().Contain("não encontrada");
+        content.Should().Contain("não foi encontrado");
     }
 
     [Fact]

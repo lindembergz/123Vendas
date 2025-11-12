@@ -1,7 +1,7 @@
 using MediatR;
 using Venda.Application.DTOs;
+using Venda.Application.Mappers;
 using Venda.Application.Queries;
-using Venda.Domain.Aggregates;
 using Venda.Domain.Enums;
 using Venda.Domain.Interfaces;
 
@@ -36,34 +36,12 @@ public class ListarVendasHandler : IRequestHandler<ListarVendasQuery, PagedResul
             request.DataFim,
             cancellationToken);
         
-        var vendasDto = vendas.Select(MapearParaDto).ToList();
+        var vendasDto = vendas.ToDto();
         
         return new PagedResult<VendaDto>(
             vendasDto,
             totalCount,
             request.PageNumber,
             request.PageSize);
-    }
-    
-    private static VendaDto MapearParaDto(VendaAgregado venda)
-    {
-        var itensDto = venda.Produtos
-            .Select(item => new ItemVendaDto(
-                item.ProdutoId,
-                item.Quantidade,
-                item.ValorUnitario,
-                item.Desconto,
-                item.Total))
-            .ToList();
-        
-        return new VendaDto(
-            venda.Id,
-            venda.NumeroVenda,
-            venda.Data,
-            venda.ClienteId,
-            venda.FilialId,
-            venda.ValorTotal,
-            venda.Status.ToString(),
-            itensDto);
     }
 }

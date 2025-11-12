@@ -436,4 +436,219 @@ public class VendaAgregadoTests
         venda.Produtos.Should().BeEmpty("item deve ser removido completamente");
         venda.ValorTotal.Should().Be(0m);
     }
+    
+    [Fact]
+    public void AtualizarItens_AdicionandoNovoItem_DeveManterItensExistentes()
+    {
+        
+        var venda = VendaAgregado.Criar(Guid.NewGuid(), Guid.NewGuid(), _politicaDesconto);
+        var produtoId1 = Guid.NewGuid();
+        var produtoId2 = Guid.NewGuid();
+        venda.AdicionarItem(new ItemVenda(produtoId1, 2, 100m));
+        venda.ClearDomainEvents();
+        
+        var novosItens = new List<ItemVenda>
+        {
+            new ItemVenda(produtoId1, 2, 100m),
+            new ItemVenda(produtoId2, 3, 50m)
+        };
+        
+        
+        var result = venda.AtualizarItens(novosItens);
+        
+        
+        result.IsSuccess.Should().BeTrue();
+        venda.Produtos.Should().HaveCount(2);
+        venda.Produtos.Should().Contain(p => p.ProdutoId == produtoId1 && p.Quantidade == 2);
+        venda.Produtos.Should().Contain(p => p.ProdutoId == produtoId2 && p.Quantidade == 3);
+    }
+    
+    [Fact]
+    public void AtualizarItens_AumentandoQuantidade_DeveAdicionarUnidades()
+    {
+        
+        var venda = VendaAgregado.Criar(Guid.NewGuid(), Guid.NewGuid(), _politicaDesconto);
+        var produtoId = Guid.NewGuid();
+        venda.AdicionarItem(new ItemVenda(produtoId, 2, 100m));
+        venda.ClearDomainEvents();
+        
+        var novosItens = new List<ItemVenda>
+        {
+            new ItemVenda(produtoId, 5, 100m)
+        };
+        
+        
+        var result = venda.AtualizarItens(novosItens);
+        
+        
+        result.IsSuccess.Should().BeTrue();
+        venda.Produtos.Should().HaveCount(1);
+        venda.Produtos.First().Quantidade.Should().Be(5);
+    }
+    
+    [Fact]
+    public void AtualizarItens_DiminuindoQuantidade_DeveRemoverUnidades()
+    {
+        
+        var venda = VendaAgregado.Criar(Guid.NewGuid(), Guid.NewGuid(), _politicaDesconto);
+        var produtoId = Guid.NewGuid();
+        venda.AdicionarItem(new ItemVenda(produtoId, 5, 100m));
+        venda.ClearDomainEvents();
+        
+        var novosItens = new List<ItemVenda>
+        {
+            new ItemVenda(produtoId, 2, 100m)
+        };
+        
+        
+        var result = venda.AtualizarItens(novosItens);
+        
+        
+        result.IsSuccess.Should().BeTrue();
+        venda.Produtos.Should().HaveCount(1);
+        venda.Produtos.First().Quantidade.Should().Be(2);
+    }
+    
+    [Fact]
+    public void AtualizarItens_RemovendoItem_DeveRemoverCompletamente()
+    {
+        
+        var venda = VendaAgregado.Criar(Guid.NewGuid(), Guid.NewGuid(), _politicaDesconto);
+        var produtoId1 = Guid.NewGuid();
+        var produtoId2 = Guid.NewGuid();
+        venda.AdicionarItem(new ItemVenda(produtoId1, 2, 100m));
+        venda.AdicionarItem(new ItemVenda(produtoId2, 3, 50m));
+        venda.ClearDomainEvents();
+        
+        var novosItens = new List<ItemVenda>
+        {
+            new ItemVenda(produtoId2, 3, 50m)
+        };
+        
+        
+        var result = venda.AtualizarItens(novosItens);
+        
+        
+        result.IsSuccess.Should().BeTrue();
+        venda.Produtos.Should().HaveCount(1);
+        venda.Produtos.First().ProdutoId.Should().Be(produtoId2);
+    }
+    
+    [Fact]
+    public void AtualizarItens_MantentoQuantidadeIgual_NaoDeveAlterarNada()
+    {
+        
+        var venda = VendaAgregado.Criar(Guid.NewGuid(), Guid.NewGuid(), _politicaDesconto);
+        var produtoId = Guid.NewGuid();
+        venda.AdicionarItem(new ItemVenda(produtoId, 3, 100m));
+        venda.ClearDomainEvents();
+        
+        var novosItens = new List<ItemVenda>
+        {
+            new ItemVenda(produtoId, 3, 100m)
+        };
+        
+        
+        var result = venda.AtualizarItens(novosItens);
+        
+        
+        result.IsSuccess.Should().BeTrue();
+        venda.Produtos.Should().HaveCount(1);
+        venda.Produtos.First().Quantidade.Should().Be(3);
+        venda.DomainEvents.Should().BeEmpty();
+    }
+    
+    [Fact]
+    public void AtualizarItens_SubstituindoTodosOsItens_DeveRemoverAntigosEAdicionarNovos()
+    {
+        
+        var venda = VendaAgregado.Criar(Guid.NewGuid(), Guid.NewGuid(), _politicaDesconto);
+        var produtoId1 = Guid.NewGuid();
+        var produtoId2 = Guid.NewGuid();
+        var produtoId3 = Guid.NewGuid();
+        var produtoId4 = Guid.NewGuid();
+        venda.AdicionarItem(new ItemVenda(produtoId1, 2, 100m));
+        venda.AdicionarItem(new ItemVenda(produtoId2, 1, 50m));
+        venda.ClearDomainEvents();
+        
+        var novosItens = new List<ItemVenda>
+        {
+            new ItemVenda(produtoId3, 3, 75m),
+            new ItemVenda(produtoId4, 2, 120m)
+        };
+        
+        
+        var result = venda.AtualizarItens(novosItens);
+        
+        
+        result.IsSuccess.Should().BeTrue();
+        venda.Produtos.Should().HaveCount(2);
+        venda.Produtos.Should().Contain(p => p.ProdutoId == produtoId3);
+        venda.Produtos.Should().Contain(p => p.ProdutoId == produtoId4);
+        venda.Produtos.Should().NotContain(p => p.ProdutoId == produtoId1);
+        venda.Produtos.Should().NotContain(p => p.ProdutoId == produtoId2);
+    }
+    
+    [Fact]
+    public void AtualizarItens_ComMaisDe20Unidades_DeveRetornarFailure()
+    {
+        
+        var venda = VendaAgregado.Criar(Guid.NewGuid(), Guid.NewGuid(), _politicaDesconto);
+        
+        var novosItens = new List<ItemVenda>
+        {
+            new ItemVenda(Guid.NewGuid(), 21, 100m)
+        };
+        
+        
+        var result = venda.AtualizarItens(novosItens);
+        
+        
+        result.IsFailure.Should().BeTrue();
+        result.Error.Should().Contain("20 unidades");
+    }
+    
+    [Fact]
+    public void AtualizarItens_ConsolidandoItensDuplicados_DeveSomarQuantidades()
+    {
+        
+        var venda = VendaAgregado.Criar(Guid.NewGuid(), Guid.NewGuid(), _politicaDesconto);
+        var produtoId = Guid.NewGuid();
+        
+        var novosItens = new List<ItemVenda>
+        {
+            new ItemVenda(produtoId, 2, 100m),
+            new ItemVenda(produtoId, 3, 100m),
+            new ItemVenda(produtoId, 1, 100m)
+        };
+        
+        
+        var result = venda.AtualizarItens(novosItens);
+        
+        
+        result.IsSuccess.Should().BeTrue();
+        venda.Produtos.Should().HaveCount(1, "itens duplicados devem ser consolidados");
+        venda.Produtos.First().Quantidade.Should().Be(6, "2 + 3 + 1 = 6");
+        venda.Produtos.First().Desconto.Should().Be(0.10m, "6 unidades = 10% desconto");
+    }
+    
+    [Fact]
+    public void AtualizarItens_VendaCancelada_DeveRetornarFailure()
+    {
+        
+        var venda = VendaAgregado.Criar(Guid.NewGuid(), Guid.NewGuid(), _politicaDesconto);
+        venda.Cancelar();
+        
+        var novosItens = new List<ItemVenda>
+        {
+            new ItemVenda(Guid.NewGuid(), 1, 100m)
+        };
+        
+        
+        var result = venda.AtualizarItens(novosItens);
+        
+        
+        result.IsFailure.Should().BeTrue();
+        result.Error.Should().Contain("cancelada");
+    }
 }

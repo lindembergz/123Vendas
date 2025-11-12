@@ -1,7 +1,7 @@
 using MediatR;
 using Venda.Application.DTOs;
+using Venda.Application.Mappers;
 using Venda.Application.Queries;
-using Venda.Domain.Aggregates;
 using Venda.Domain.Interfaces;
 
 namespace Venda.Application.Handlers;
@@ -19,28 +19,6 @@ public class ObterVendaPorIdHandler : IRequestHandler<ObterVendaPorIdQuery, Vend
     {
         var venda = await _repository.ObterPorIdAsync(request.VendaId, cancellationToken);
         
-        return venda != null ? MapearParaDto(venda) : null;
-    }
-    
-    private static VendaDto MapearParaDto(VendaAgregado venda)
-    {
-        var itensDto = venda.Produtos
-            .Select(item => new ItemVendaDto(
-                item.ProdutoId,
-                item.Quantidade,
-                item.ValorUnitario,
-                item.Desconto,
-                item.Total))
-            .ToList();
-        
-        return new VendaDto(
-            venda.Id,
-            venda.NumeroVenda,
-            venda.Data,
-            venda.ClienteId,
-            venda.FilialId,
-            venda.ValorTotal,
-            venda.Status.ToString(),
-            itensDto);
+        return venda?.ToDto();
     }
 }

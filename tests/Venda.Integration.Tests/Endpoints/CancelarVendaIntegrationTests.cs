@@ -73,7 +73,7 @@ public class CancelarVendaIntegrationTests : IClassFixture<CustomWebApplicationF
         
         var content = await response.Content.ReadAsStringAsync();
         content.Should().NotBeNullOrEmpty();
-        content.Should().Contain("não encontrada", "deve indicar que a venda não existe");
+        content.Should().Contain("não foi encontrado", "deve indicar que a venda não existe");
     }
 
     [Fact]

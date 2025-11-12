@@ -1,9 +1,11 @@
 using _123Vendas.Shared.Common;
+using _123Vendas.Shared.Exceptions;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Venda.Application.Commands;
 using Venda.Application.DTOs;
 using Venda.Application.Interfaces;
+using Venda.Application.Mappers;
 using Venda.Application.Services;
 using Venda.Domain.Interfaces;
 
@@ -34,50 +36,42 @@ public class AtualizarVendaHandler : IRequestHandler<AtualizarVendaCommand, Resu
 
     public async Task<Result<VendaDto>> Handle(AtualizarVendaCommand request, CancellationToken ct)
     {
-        try
+        //Verificar idempotência
+        var idempotencyResult = await VerificarIdempotencia(request.RequestId, ct);
+        if (idempotencyResult != null)
+            return idempotencyResult;
+
+        //Carregar venda existente
+        var venda = await _vendaRepository.ObterPorIdAsync(request.VendaId, ct);
+        if (venda == null)
         {
-            //Verificar idempotência
-            var idempotencyResult = await VerificarIdempotencia(request.RequestId, ct);
-            if (idempotencyResult != null)
-                return idempotencyResult;
-
-            //Carregar venda existente
-            var venda = await _vendaRepository.ObterPorIdAsync(request.VendaId, ct);
-            if (venda == null)
-            {
-                _logger.LogWarning("Venda {VendaId} não encontrada", request.VendaId);
-                return Result<VendaDto>.Failure($"Venda {request.VendaId} não encontrada.");
-            }
-
-            //Atualizar itens (delegado ao VendaUpdater)
-            var updateResult = _vendaUpdater.AtualizarItens(venda, request.Itens);
-            if (updateResult.IsFailure)
-                return Result<VendaDto>.Failure(updateResult.Error!);
-
-            //Persistir venda atualizada (que salva eventos no outbox)
-            //Nota: Eventos serão publicados assincronamente pelo OutboxProcessor
-            await _vendaRepository.AtualizarAsync(venda, ct);
-
-            _logger.LogInformation(
-                "Venda {VendaId} atualizada com sucesso. Número: {NumeroVenda}, Total de itens: {TotalItens}",
-                venda.Id, venda.NumeroVenda, venda.Produtos.Count);
-
-            //Salvar idempotência
-            await _idempotencyStore.SaveAsync(
-                request.RequestId,
-                nameof(AtualizarVendaCommand),
-                venda.Id,
-                ct);
-
-            //Retornar DTO
-            var vendaDto = MapearParaDto(venda);
-            return Result<VendaDto>.Success(vendaDto);
+            _logger.LogWarning("Venda {VendaId} não encontrada", request.VendaId);
+            throw new NotFoundException("Venda", request.VendaId);
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Erro não tratado ao atualizar venda {VendaId}", request.VendaId);
-            return Result<VendaDto>.Failure("Erro interno ao atualizar venda.");
-        }
+
+        //Atualizar itens (delegado ao VendaUpdater)
+        var updateResult = _vendaUpdater.AtualizarItens(venda, request.Itens);
+        if (updateResult.IsFailure)
+            return Result<VendaDto>.Failure(updateResult.Error!);
+
+        //Persistir venda atualizada (que salva eventos no outbox)
+        //Nota: Eventos serão publicados assincronamente pelo OutboxProcessor
+        await _vendaRepository.AtualizarAsync(venda, ct);
+
+        _logger.LogInformation(
+            "Venda {VendaId} atualizada com sucesso. Número: {NumeroVenda}, Total de itens: {TotalItens}",
+            venda.Id, venda.NumeroVenda, venda.Produtos.Count);
+
+        //Salvar idempotência
+        await _idempotencyStore.SaveAsync(
+            request.RequestId,
+            nameof(AtualizarVendaCommand),
+            venda.Id,
+            ct);
+
+        //Retornar DTO
+        var vendaDto = venda.ToDto();
+        return Result<VendaDto>.Success(vendaDto);
     }
 
     private async Task<Result<VendaDto>?> VerificarIdempotencia(Guid requestId, CancellationToken ct)
@@ -97,28 +91,6 @@ public class AtualizarVendaHandler : IRequestHandler<AtualizarVendaCommand, Resu
         if (vendaExistente == null)
             return null;
 
-        return Result<VendaDto>.Success(MapearParaDto(vendaExistente));
-    }
-
-    private static VendaDto MapearParaDto(Domain.Aggregates.VendaAgregado venda)
-    {
-        var itensDto = venda.Produtos.Select(p => new ItemVendaDto(
-            p.ProdutoId,
-            p.Quantidade,
-            p.ValorUnitario,
-            p.Desconto,
-            p.Total
-        )).ToList();
-
-        return new VendaDto(
-            venda.Id,
-            venda.NumeroVenda,
-            venda.Data,
-            venda.ClienteId,
-            venda.FilialId,
-            venda.ValorTotal,
-            venda.Status.ToString(),
-            itensDto
-        );
+        return Result<VendaDto>.Success(vendaExistente.ToDto());
     }
 }
