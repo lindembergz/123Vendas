@@ -14,23 +14,56 @@ public static class WebServiceCollectionExtensions
 {
     public static void AddSerilogConfiguration(this WebApplicationBuilder builder)
     {
-        Log.Logger = new LoggerConfiguration()
+        var configuration = builder.Configuration;
+        var environment = builder.Environment.EnvironmentName;
+
+        var loggerConfig = new LoggerConfiguration()
             .MinimumLevel.Information()
             .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
             .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
             .MinimumLevel.Override("System", LogEventLevel.Warning)
             .Enrich.FromLogContext()
             .Enrich.WithProperty("Application", "123Vendas.API")
-            .Enrich.WithProperty("Environment", Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production")
-            .WriteTo.Console(
-                outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}")
-            .WriteTo.File(
+            .Enrich.WithProperty("Environment", environment)
+            .Enrich.WithMachineName()
+            .Enrich.WithThreadId();
+
+        // Console sempre habilitado (desenvolvimento e troubleshooting)
+        loggerConfig.WriteTo.Console(
+            outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}");
+
+        // Seq (produção) - ASSÍNCRONO
+        var enableSeqSink = configuration.GetValue<bool>("Logging:EnableSeqSink");
+        if (enableSeqSink)
+        {
+            var seqServerUrl = configuration["Seq:ServerUrl"] ?? "http://localhost:5341";
+            var seqApiKey = configuration["Seq:ApiKey"];
+
+            loggerConfig.WriteTo.Seq(
+                serverUrl: seqServerUrl,
+                apiKey: string.IsNullOrWhiteSpace(seqApiKey) ? null : seqApiKey,
+                bufferBaseFilename: "./logs/seq-buffer",
+                batchPostingLimit: 100,
+                period: TimeSpan.FromSeconds(2),
+                queueSizeLimit: 100000);
+
+            Log.Information("Seq Sink habilitado: {SeqServerUrl}", seqServerUrl);
+        }
+
+        // File Sink (apenas desenvolvimento/fallback) - ASSÍNCRONO e OPCIONAL
+        var enableFileSink = configuration.GetValue<bool>("Logging:EnableFileSink");
+        if (enableFileSink)
+        {
+            loggerConfig.WriteTo.Async(a => a.File(
                 path: "logs/123vendas-.log",
                 rollingInterval: RollingInterval.Day,
                 outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz}] [{Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}",
-                retainedFileCountLimit: 30)
-            .CreateLogger();
+                retainedFileCountLimit: 7));  // Reduzido para 7 dias
 
+            Log.Information("File Sink habilitado (modo fallback)");
+        }
+
+        Log.Logger = loggerConfig.CreateLogger();
         builder.Host.UseSerilog();
     }
 
