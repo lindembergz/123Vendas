@@ -92,14 +92,20 @@ Separação clara entre comandos (escrita) e queries (leitura):
 
 2. **Restaurar dependências**
 
-   dotnet restore      
+   dotnet restore
+3. **Iniciar o Seq (Docker)**
+      docker-compose up -d
+   **Acesso ao Seq:**
+      - URL: **http://localhost:5341**
+      - Usuário: `admin`
+      - Senha: `Admin@123`
 
-3. **build e Executar a aplicação**
+4. **build e Executar a aplicação**
    
    dotnet build --project src/123Vendas.Api
    dotnet run --project src/123Vendas.Api   
 
-4. **Acessar a API**
+5. **Acessar a API**
    - **Swagger UI**: `https://localhost:5001/swagger` - Documentação interativa
    - **Health Check**: `https://localhost:5001/health` - Status da aplicação
    - **Endpoints**: `https://localhost:5001/api/v1/vendas` - API de vendas
@@ -135,7 +141,7 @@ Separação clara entre comandos (escrita) e queries (leitura):
       - Ordenação por data (mais recentes primeiro)
   
 
-5. **Executar Testes**
+6. **Executar Testes**
 
     dotnet test
    
