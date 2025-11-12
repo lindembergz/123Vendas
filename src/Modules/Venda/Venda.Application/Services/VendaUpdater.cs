@@ -7,8 +7,9 @@ using Venda.Domain.ValueObjects;
 namespace Venda.Application.Services;
 
 /// <summary>
-/// Serviço responsável pela lógica de atualização de itens de uma venda.
-/// Implementa SRP: única responsabilidade de coordenar mudanças nos itens.
+/// Serviço responsável pela orquestração de atualização de itens de uma venda.
+/// Implementa SRP: única responsabilidade de coordenar e logar operações de atualização.
+/// A lógica de negócio está no agregado de domínio.
 /// </summary>
 public class VendaUpdater
 {
@@ -20,192 +21,38 @@ public class VendaUpdater
     }
 
     /// <summary>
-    /// Atualiza os itens de uma venda de forma inteligente:
-    /// -Consolida itens duplicados (mesmo ProdutoId) somando suas quantidades
-    /// -Remove itens que não estão mais na lista
-    /// -Adiciona novos itens
-    /// -Ajusta quantidades de itens existentes
-    /// <summary>
+    /// Atualiza os itens de uma venda delegando a lógica de negócio para o agregado.
+    /// </summary>
     public Result AtualizarItens(VendaAgregado venda, IReadOnlyList<ItemVendaDto> itensDto)
     {
-        //Consolidar itens duplicados antes de processar 
-        var itensConsolidados = ConsolidarItensDuplicados(itensDto);
+        _logger.LogInformation(
+            "Iniciando atualização de itens da venda {VendaId}. Itens recebidos: {QuantidadeItens}",
+            venda.Id, itensDto.Count);
         
-        var produtosNovos = itensConsolidados.Select(i => i.ProdutoId).ToHashSet();
-        var produtosExistentes = venda.Produtos.Select(p => p.ProdutoId).ToHashSet();
-
-        //Remover itens que não estão mais na lista
-        var result = RemoverItensAusentes(venda, produtosExistentes, produtosNovos);
-        if (result.IsFailure)
-            return result;
-
-        //Atualizar ou adicionar itens
-        foreach (var itemDto in itensConsolidados)
-        {
-            result = AtualizarOuAdicionarItem(venda, itemDto);
-            if (result.IsFailure)
-                return result;
-        }
-
-        return Result.Success();
-    }
-
-    /// <summary>
-    ///Consolida itens com o mesmo ProdutoId, somando suas quantidades.
-    /// </summary>
-    private List<ItemVendaDto> ConsolidarItensDuplicados(IReadOnlyList<ItemVendaDto> itensDto)
-    {
-        var itensConsolidados = itensDto
-            .GroupBy(i => i.ProdutoId)
-            .Select(g => new ItemVendaDto(
-                ProdutoId: g.Key,
-                Quantidade: g.Sum(x => x.Quantidade),
-                ValorUnitario: g.First().ValorUnitario, //Usa o valor unitário do primeiro item
-                Desconto: 0m, //Desconto será recalculado pelo agregado
-                Total: 0m //Total será recalculado pelo agregado
-            ))
-            .ToList();
-
-        if (itensConsolidados.Count < itensDto.Count)
-        {
-            _logger.LogInformation(
-                "Itens duplicados consolidados: {ItensOriginais} itens → {ItensConsolidados} itens únicos",
-                itensDto.Count, itensConsolidados.Count);
-        }
-
-        return itensConsolidados;
-    }
-
-    private Result RemoverItensAusentes(
-        VendaAgregado venda,
-        HashSet<Guid> produtosExistentes,
-        HashSet<Guid> produtosNovos)
-    {
-        var produtosParaRemover = produtosExistentes.Except(produtosNovos).ToList();
-
-        foreach (var produtoId in produtosParaRemover)
-        {
-            var result = venda.RemoverItem(produtoId);
-            if (result.IsFailure)
-            {
-                _logger.LogWarning(
-                    "Falha ao remover item {ProdutoId} da venda {VendaId}: {Error}",
-                    produtoId, venda.Id, result.Error);
-                return result;
-            }
-
-            _logger.LogInformation(
-                "Item {ProdutoId} removido da venda {VendaId}",
-                produtoId, venda.Id);
-        }
-
-        return Result.Success();
-    }
-
-    private Result AtualizarOuAdicionarItem(VendaAgregado venda, ItemVendaDto itemDto)
-    {
-        var itemExistente = venda.Produtos.FirstOrDefault(p => p.ProdutoId == itemDto.ProdutoId);
-
-        if (itemExistente == null)
-        {
-
-            return AdicionarNovoItem(venda, itemDto);
-        }
-        return AjustarQuantidadeItem(venda, itemDto, itemExistente);
-    }
-
-    private Result AdicionarNovoItem(VendaAgregado venda, ItemVendaDto itemDto)
-    {
-        var item = new ItemVenda(
-            itemDto.ProdutoId,
-            itemDto.Quantidade,
-            itemDto.ValorUnitario,
-            0m); //Desconto será calculado pelo agregado
-
-        var result = venda.AdicionarItem(item);
+        // Converte DTOs para value objects de domínio
+        var itens = itensDto.Select(dto => new ItemVenda(
+            dto.ProdutoId,
+            dto.Quantidade,
+            dto.ValorUnitario,
+            0m // Desconto será calculado pelo agregado
+        )).ToList();
+        
+        // Delega a lógica de negócio para o agregado
+        var result = venda.AtualizarItens(itens);
         
         if (result.IsSuccess)
         {
             _logger.LogInformation(
-                "Novo item {ProdutoId} adicionado à venda {VendaId} com {Quantidade} unidades",
-                itemDto.ProdutoId, venda.Id, itemDto.Quantidade);
+                "Atualização de itens da venda {VendaId} concluída com sucesso. Total de itens: {QuantidadeItens}",
+                venda.Id, venda.Produtos.Count);
         }
         else
         {
             _logger.LogWarning(
-                "Falha ao adicionar item {ProdutoId} à venda {VendaId}: {Error}",
-                itemDto.ProdutoId, venda.Id, result.Error);
+                "Falha ao atualizar itens da venda {VendaId}: {Error}",
+                venda.Id, result.Error);
         }
-
-        return result;
-    }
-
-    private Result AjustarQuantidadeItem(
-        VendaAgregado venda,
-        ItemVendaDto itemDto,
-        ItemVenda itemExistente)
-    {
-        var diferenca = itemDto.Quantidade - itemExistente.Quantidade;
-
-        if (diferenca == 0)
-        {
-            //Quantidade não mudou: nada a fazer
-            return Result.Success();
-        }
-
-        if (diferenca > 0)
-        {
-            //Aumentar quantidade: adicionar mais unidades
-            return AdicionarUnidades(venda, itemDto, diferenca);
-        }
-
-        //Diminuir quantidade: remover unidades
-        return RemoverUnidades(venda, itemDto, Math.Abs(diferenca));
-    }
-
-    private Result AdicionarUnidades(VendaAgregado venda, ItemVendaDto itemDto, int quantidadeAdicionar)
-    {
-        var item = new ItemVenda(
-            itemDto.ProdutoId,
-            quantidadeAdicionar,
-            itemDto.ValorUnitario,
-            0m);
-
-        var result = venda.AdicionarItem(item);
-
-        if (result.IsSuccess)
-        {
-            _logger.LogInformation(
-                "Adicionadas {Quantidade} unidades do item {ProdutoId} à venda {VendaId}",
-                quantidadeAdicionar, itemDto.ProdutoId, venda.Id);
-        }
-        else
-        {
-            _logger.LogWarning(
-                "Falha ao adicionar {Quantidade} unidades do item {ProdutoId} à venda {VendaId}: {Error}",
-                quantidadeAdicionar, itemDto.ProdutoId, venda.Id, result.Error);
-        }
-
-        return result;
-    }
-
-    private Result RemoverUnidades(VendaAgregado venda, ItemVendaDto itemDto, int quantidadeRemover)
-    {
-        var result = venda.RemoverItem(itemDto.ProdutoId, quantidadeRemover);
-
-        if (result.IsSuccess)
-        {
-            _logger.LogInformation(
-                "Removidas {Quantidade} unidades do item {ProdutoId} da venda {VendaId}",
-                quantidadeRemover, itemDto.ProdutoId, venda.Id);
-        }
-        else
-        {
-            _logger.LogWarning(
-                "Falha ao remover {Quantidade} unidades do item {ProdutoId} da venda {VendaId}: {Error}",
-                quantidadeRemover, itemDto.ProdutoId, venda.Id, result.Error);
-        }
-
+        
         return result;
     }
 }

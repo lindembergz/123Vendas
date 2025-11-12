@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Net;
+using _123Vendas.Shared.Exceptions;
 
 namespace _123Vendas.Api.Middleware;
 
@@ -65,7 +66,32 @@ public class GlobalExceptionMiddleware
     {
         var (status, title, detail) = exception switch
         {
-            // Erros de validação de argumentos
+            // Exceções de domínio customizadas (prioridade)
+            DomainException domainEx => (
+                StatusCodes.Status422UnprocessableEntity,
+                "Erro de domínio",
+                domainEx.Message
+            ),
+            
+            NotFoundException notFoundEx => (
+                StatusCodes.Status404NotFound,
+                "Recurso não encontrado",
+                notFoundEx.Message
+            ),
+            
+            ConflictException conflictEx => (
+                StatusCodes.Status409Conflict,
+                "Conflito de estado",
+                conflictEx.Message
+            ),
+            
+            ExternalServiceException externalEx => (
+                StatusCodes.Status502BadGateway,
+                $"Erro no serviço {externalEx.ServiceName}",
+                externalEx.Message
+            ),
+            
+            // Erros de validação de argumentos (fallback)
             ArgumentException or ArgumentNullException => (
                 StatusCodes.Status400BadRequest,
                 "Erro de validação",
@@ -86,7 +112,7 @@ public class GlobalExceptionMiddleware
                 "A requisição foi cancelada pelo cliente"
             ),
             
-            // Falha de comunicação com serviços externos
+            // Falha de comunicação com serviços externos (fallback)
             HttpRequestException => (
                 StatusCodes.Status502BadGateway,
                 "Erro de comunicação externa",

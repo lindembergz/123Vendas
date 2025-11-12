@@ -1,4 +1,5 @@
 using _123Vendas.Shared.Common;
+using _123Vendas.Shared.Exceptions;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Venda.Application.Commands;
@@ -41,7 +42,7 @@ public class CancelarVendaHandler : IRequestHandler<CancelarVendaCommand, Result
             _logger.LogWarning(
                 "Venda {VendaId} não encontrada para cancelamento",
                 request.VendaId);
-            return Result.Failure($"Venda {request.VendaId} não encontrada.");
+            throw new NotFoundException("Venda", request.VendaId);
         }
 
         //Cancelar venda (aplica regra de negócio)

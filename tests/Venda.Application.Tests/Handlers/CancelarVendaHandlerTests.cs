@@ -112,12 +112,11 @@ public class CancelarVendaHandlerTests
             .Returns((VendaAgregado?)null);
 
         
-        var result = await _handler.Handle(command, CancellationToken.None);
+        var act = async () => await _handler.Handle(command, CancellationToken.None);
 
         
-        result.IsFailure.Should().BeTrue();
-        result.Error.Should().Contain("não encontrada");
-        result.Error.Should().Contain(vendaId.ToString());
+        await act.Should().ThrowAsync<_123Vendas.Shared.Exceptions.NotFoundException>()
+            .WithMessage($"*{vendaId}*");
 
         await _vendaRepository.DidNotReceive().AtualizarAsync(
             Arg.Any<VendaAgregado>(),

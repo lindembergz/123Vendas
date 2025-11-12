@@ -1,10 +1,7 @@
-using System.Text.Json;
-using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using _123Vendas.Shared.Events;
 using Venda.Infrastructure.Configuration;
 using Venda.Infrastructure.Interfaces;
 
@@ -61,11 +58,14 @@ public class OutboxProcessor : BackgroundService
         _logger.LogInformation("OutboxProcessor finalizado");
     }
     
+    /// <summary>
+    /// Processa eventos pendentes do outbox em lote.
+    /// </summary>
     private async Task ProcessarEventosPendentesAsync(CancellationToken stoppingToken)
     {
         using var scope = _serviceProvider.CreateScope();
         var outbox = scope.ServiceProvider.GetRequiredService<IOutboxService>();
-        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+        var eventProcessor = scope.ServiceProvider.GetRequiredService<IOutboxEventProcessor>();
         
         var eventosPendentes = await outbox.ObterEventosPendentesAsync(_settings.BatchSize, stoppingToken);
         
@@ -76,67 +76,59 @@ public class OutboxProcessor : BackgroundService
         
         _logger.LogInformation("Processando {Count} eventos pendentes", eventosPendentes.Count);
         
-        foreach (var outboxEvent in eventosPendentes)
+        await ProcessarLoteDeEventosAsync(eventosPendentes, outbox, eventProcessor, stoppingToken);
+    }
+    
+    /// <summary>
+    /// Processa um lote de eventos do outbox.
+    /// </summary>
+    private async Task ProcessarLoteDeEventosAsync(
+        IReadOnlyList<Entities.OutboxEvent> eventos,
+        IOutboxService outbox,
+        IOutboxEventProcessor eventProcessor,
+        CancellationToken stoppingToken)
+    {
+        foreach (var outboxEvent in eventos)
         {
-            try
+            await ProcessarEventoIndividualAsync(outboxEvent, outbox, eventProcessor, stoppingToken);
+        }
+    }
+    
+    /// <summary>
+    /// Processa um evento individual do outbox.
+    /// </summary>
+    private async Task ProcessarEventoIndividualAsync(
+        Entities.OutboxEvent outboxEvent,
+        IOutboxService outbox,
+        IOutboxEventProcessor eventProcessor,
+        CancellationToken stoppingToken)
+    {
+        try
+        {
+            var result = await eventProcessor.ProcessAsync(outboxEvent, stoppingToken);
+            
+            if (result.Success)
             {
-                // Deserializar evento
-                var eventType = Type.GetType(outboxEvent.EventType);
-                
-                if (eventType == null)
-                {
-                    _logger.LogWarning(
-                        "Tipo de evento não encontrado: {EventType}. EventId: {EventId}",
-                        outboxEvent.EventType,
-                        outboxEvent.Id);
-                    
-                    await outbox.MarcarComoFalhadoAsync(
-                        outboxEvent.Id,
-                        $"Tipo de evento não encontrado: {outboxEvent.EventType}",
-                        stoppingToken);
-                    
-                    continue;
-                }
-                
-                var evento = JsonSerializer.Deserialize(outboxEvent.EventData, eventType) as INotification;
-                
-                if (evento == null)
-                {
-                    _logger.LogWarning(
-                        "Falha ao desserializar evento {EventType}. EventId: {EventId}",
-                        outboxEvent.EventType,
-                        outboxEvent.Id);
-                    
-                    await outbox.MarcarComoFalhadoAsync(
-                        outboxEvent.Id,
-                        "Falha ao desserializar evento",
-                        stoppingToken);
-                    
-                    continue;
-                }
-                
-                // Publicar evento via MediatR
-                await mediator.Publish(evento, stoppingToken);
-                
-                // Marcar como processado
                 await outbox.MarcarComoProcessadoAsync(outboxEvent.Id, stoppingToken);
-                
-                _logger.LogInformation(
-                    "Evento {EventType} processado com sucesso. EventId: {EventId}",
-                    outboxEvent.EventType,
-                    outboxEvent.Id);
             }
-            catch (Exception ex)
+            else
             {
-                _logger.LogError(
-                    ex,
-                    "Erro ao processar evento {EventType}. EventId: {EventId}. Tentativa: {RetryCount}",
-                    outboxEvent.EventType,
+                await outbox.MarcarComoFalhadoAsync(
                     outboxEvent.Id,
-                    outboxEvent.RetryCount + 1);
-                
-                await outbox.MarcarComoFalhadoAsync(outboxEvent.Id, ex.Message, stoppingToken);
+                    result.ErrorMessage ?? "Erro desconhecido",
+                    stoppingToken);
             }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Erro ao processar evento {EventType}. EventId: {EventId}. Tentativa: {RetryCount}",
+                outboxEvent.EventType,
+                outboxEvent.Id,
+                outboxEvent.RetryCount + 1);
+            
+            await outbox.MarcarComoFalhadoAsync(outboxEvent.Id, ex.Message, stoppingToken);
         }
     }
 }

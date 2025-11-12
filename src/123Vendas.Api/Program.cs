@@ -22,7 +22,7 @@ try
     builder.Services.AddSwaggerConfiguration();
 
     //3. Registrar serviços de aplicação (MediatR, Repositories, etc.)
-    builder.Services.AddApplicationServices();
+    builder.Services.AddApplicationServices(builder.Configuration);
 
     //5. Configurar Database
     var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 

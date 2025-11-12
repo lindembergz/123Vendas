@@ -1,8 +1,12 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using NSubstitute;
 using Venda.Domain.Aggregates;
 using Venda.Domain.Services;
 using Venda.Domain.ValueObjects;
+using Venda.Infrastructure.Configuration;
 using Venda.Infrastructure.Data;
 using Venda.Infrastructure.Repositories;
 using Venda.Infrastructure.Services;
@@ -23,7 +27,17 @@ public class VendaRepositoryTests : IDisposable
         
         _context = new VendaDbContext(options);
         var outboxService = new OutboxService(_context);
-        _repository = new VendaRepository(_context, outboxService);
+        
+        // Configurar retry strategy
+        var retryOptions = Options.Create(new RetryStrategyOptions
+        {
+            MaxRetries = 5,
+            InitialDelayMs = 50
+        });
+        var logger = Substitute.For<ILogger<ExponentialBackoffRetryStrategy>>();
+        var retryStrategy = new ExponentialBackoffRetryStrategy(retryOptions, logger);
+        
+        _repository = new VendaRepository(_context, outboxService, retryStrategy);
     }
     
     [Fact]

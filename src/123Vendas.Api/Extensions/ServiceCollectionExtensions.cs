@@ -2,6 +2,7 @@ using FluentValidation;
 using MediatR;
 using Venda.Application.Interfaces;
 using Venda.Domain.Interfaces;
+using Venda.Infrastructure.Configuration;
 using Venda.Infrastructure.Interfaces;
 using Venda.Infrastructure.Repositories;
 using Venda.Infrastructure.Services;
@@ -10,7 +11,7 @@ namespace _123Vendas.Api.Extensions;
 
 public static class ServiceCollectionExtensions
 {
-    public static IServiceCollection AddApplicationServices(this IServiceCollection services)
+    public static IServiceCollection AddApplicationServices(this IServiceCollection services, IConfiguration configuration)
     {
         //MediatR - Registrar handlers do assembly de Application
         services.AddMediatR(cfg =>
@@ -27,10 +28,18 @@ public static class ServiceCollectionExtensions
         // Application Services
         services.AddScoped<Venda.Application.Services.VendaUpdater>();
 
+        //Retry Strategy
+        services.Configure<RetryStrategyOptions>(configuration.GetSection("RetryStrategy"));
+        services.AddScoped<IRetryStrategy, ExponentialBackoffRetryStrategy>();
+
         //Repositories
         services.AddScoped<IVendaRepository, VendaRepository>();
+        services.AddScoped<IVendaQueryRepository, VendaQueryRepository>();
         services.AddScoped<IIdempotencyStore, IdempotencyStore>();
         services.AddScoped<IOutboxService, OutboxService>();
+
+        //Outbox Event Processor
+        services.AddScoped<IOutboxEventProcessor, OutboxEventProcessor>();
 
         //Background Services
         services.AddHostedService<Venda.Infrastructure.BackgroundServices.OutboxProcessor>();
