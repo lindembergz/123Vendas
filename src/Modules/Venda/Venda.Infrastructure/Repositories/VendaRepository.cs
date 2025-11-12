@@ -90,13 +90,14 @@ public class VendaRepository : IVendaRepository
         // Aplicar filtros usando método extraído
         query = AplicarFiltros(query, clienteId, filialId, status, dataInicio, dataFim);
         
-        // Aplicar paginação e ordenação com AsSplitQuery para evitar cartesian explosion
+        // Aplicar paginação e ordenação com AsSingleQuery (otimizado para paginação)
+        // Com paginação, JOIN único + TOP/OFFSET é mais eficiente que split queries
         var items = await query
             .Include(v => v.Produtos)
-            .AsSplitQuery() // Evita cartesian explosion ao carregar coleções
             .OrderByDescending(v => v.Data)
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
+            .AsSingleQuery() // Força JOIN único + TOP/OFFSET no SQL
             .ToListAsync(ct);
         
         // Otimização: se primeira página retornou menos itens que pageSize, não precisa fazer count
