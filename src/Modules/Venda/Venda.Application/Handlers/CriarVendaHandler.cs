@@ -37,15 +37,31 @@ public class CriarVendaHandler : IRequestHandler<CriarVendaCommand, Result<Guid>
 
     public async Task<Result<Guid>> Handle(CriarVendaCommand request, CancellationToken ct)
     {
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var totalItens = request.Itens.Count;
+        var valorTotal = request.Itens.Sum(i => i.Quantidade * i.ValorUnitario);
+
+        // Log estruturado: Início da transação crítica
+        _logger.LogInformation(
+            "[TRANSACAO_CRITICA] Iniciando criação de venda. RequestId: {RequestId}, ClienteId: {ClienteId}, FilialId: {FilialId}, TotalItens: {TotalItens}, ValorTotal: {ValorTotal:C}",
+            request.RequestId,
+            request.ClienteId,
+            request.FilialId,
+            totalItens,
+            valorTotal);
+
         //Verificar idempotência
         if (await _idempotencyStore.ExistsAsync(request.RequestId, ct))
         {
             var aggregateId = await _idempotencyStore.GetAggregateIdAsync(request.RequestId, ct);
             if (aggregateId.HasValue)
             {
+                stopwatch.Stop();
                 _logger.LogInformation(
-                    "RequestId {RequestId} já processado. Retornando VendaId existente: {VendaId}",
-                    request.RequestId, aggregateId.Value);
+                    "[IDEMPOTENCIA] RequestId {RequestId} já processado. VendaId: {VendaId}, Duracao: {DuracaoMs}ms",
+                    request.RequestId,
+                    aggregateId.Value,
+                    stopwatch.ElapsedMilliseconds);
                 return Result<Guid>.Success(aggregateId.Value);
             }
         }
@@ -57,13 +73,25 @@ public class CriarVendaHandler : IRequestHandler<CriarVendaCommand, Result<Guid>
             
             if (!clienteValido)
             {
-                _logger.LogWarning("Cliente {ClienteId} não encontrado no CRM", request.ClienteId);
+                stopwatch.Stop();
+                _logger.LogWarning(
+                    "[VALIDACAO_FALHOU] Cliente não encontrado. ClienteId: {ClienteId}, Duracao: {DuracaoMs}ms",
+                    request.ClienteId,
+                    stopwatch.ElapsedMilliseconds);
                 return Result<Guid>.Failure($"Cliente {request.ClienteId} não encontrado.");
             }
+
+            _logger.LogInformation(
+                "[VALIDACAO_OK] Cliente validado com sucesso. ClienteId: {ClienteId}",
+                request.ClienteId);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Erro ao validar cliente {ClienteId} no CRM", request.ClienteId);
+            stopwatch.Stop();
+            _logger.LogError(ex,
+                "[ERRO_INTEGRACAO] Erro ao validar cliente no CRM. ClienteId: {ClienteId}, Duracao: {DuracaoMs}ms",
+                request.ClienteId,
+                stopwatch.ElapsedMilliseconds);
             return Result<Guid>.Failure("Serviço de validação de cliente indisponível. Tente novamente mais tarde.");
         }
 
@@ -71,6 +99,7 @@ public class CriarVendaHandler : IRequestHandler<CriarVendaCommand, Result<Guid>
         var venda = VendaAgregado.Criar(request.ClienteId, request.FilialId, _politicaDesconto);
 
         //Adicionar itens
+        var itensAdicionados = 0;
         foreach (var itemDto in request.Itens)
         {
             var item = new ItemVenda(
@@ -82,20 +111,21 @@ public class CriarVendaHandler : IRequestHandler<CriarVendaCommand, Result<Guid>
             var resultado = venda.AdicionarItem(item);
             if (resultado.IsFailure)
             {
+                stopwatch.Stop();
                 _logger.LogWarning(
-                    "Falha ao adicionar item {ProdutoId} à venda: {Error}",
-                    itemDto.ProdutoId, resultado.Error);
+                    "[ITEM_REJEITADO] Falha ao adicionar item. ProdutoId: {ProdutoId}, Quantidade: {Quantidade}, Erro: {Error}, Duracao: {DuracaoMs}ms",
+                    itemDto.ProdutoId,
+                    itemDto.Quantidade,
+                    resultado.Error,
+                    stopwatch.ElapsedMilliseconds);
                 return Result<Guid>.Failure(resultado.Error!);
             }
+            itensAdicionados++;
         }
 
         //Persistir venda (que salva eventos no outbox)
         //Nota: Eventos serão publicados assincronamente pelo OutboxProcessor
         await _vendaRepository.AdicionarAsync(venda, ct);
-
-        _logger.LogInformation(
-            "Venda {VendaId} criada com sucesso. Número: {NumeroVenda}, Cliente: {ClienteId}, Status: {Status}",
-            venda.Id, venda.NumeroVenda, venda.ClienteId, venda.Status);
 
         //Salvar RequestId no IdempotencyStore
         await _idempotencyStore.SaveAsync(
@@ -103,6 +133,20 @@ public class CriarVendaHandler : IRequestHandler<CriarVendaCommand, Result<Guid>
             nameof(CriarVendaCommand),
             venda.Id,
             ct);
+
+        stopwatch.Stop();
+
+        // Log estruturado: Sucesso da transação crítica com métricas
+        _logger.LogInformation(
+            "[TRANSACAO_SUCESSO] Venda criada com sucesso. VendaId: {VendaId}, NumeroVenda: {NumeroVenda}, ClienteId: {ClienteId}, FilialId: {FilialId}, Status: {Status}, ItensAdicionados: {ItensAdicionados}, ValorTotal: {ValorTotal:C}, Duracao: {DuracaoMs}ms",
+            venda.Id,
+            venda.NumeroVenda,
+            venda.ClienteId,
+            venda.FilialId,
+            venda.Status,
+            itensAdicionados,
+            venda.ValorTotal,
+            stopwatch.ElapsedMilliseconds);
 
         return Result<Guid>.Success(venda.Id);
     }
