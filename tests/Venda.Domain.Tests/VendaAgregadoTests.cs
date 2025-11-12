@@ -333,7 +333,7 @@ public class VendaAgregadoTests
         
         
         result.IsFailure.Should().BeTrue();
-        result.Error.Should().Contain("Quantidade (10) maior que disponível (5).");
+        result.Error.Should().Contain("Quantidade a remover (10) é maior que a quantidade disponível (5).");
         venda.Produtos.Should().HaveCount(1);
         venda.Produtos[0].Quantidade.Should().Be(5, "quantidade não deve mudar");
     }
