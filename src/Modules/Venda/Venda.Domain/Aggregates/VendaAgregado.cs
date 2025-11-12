@@ -124,33 +124,44 @@ public class VendaAgregado : IAggregateRoot
             return Result.Failure("Não é possível remover itens de uma venda cancelada.");
 
         if (quantidade <= 0)
-            return Result.Failure("Quantidade deve ser maior que zero.");
+            return Result.Failure("Quantidade a remover deve ser maior que zero.");
 
         var item = _produtos.FirstOrDefault(i => i.ProdutoId == produtoId);
         if (item is null)
-            return Result.Failure($"Produto {produtoId} não encontrado.");
+            return Result.Failure($"Produto {produtoId} não encontrado na venda.");
 
         if (quantidade > item.Quantidade)
-            return Result.Failure($"Quantidade ({quantidade}) maior que disponível ({item.Quantidade}).");
+            return Result.Failure(
+                $"Quantidade a remover ({quantidade}) é maior que a quantidade disponível ({item.Quantidade}).");
 
         var novaQuantidade = item.Quantidade - quantidade;
+
+        // Sempre remove o item atual antes de decidir o próximo estado
         _produtos.Remove(item);
 
         if (novaQuantidade == 0)
         {
-            _produtos.Remove(item);
+            // Remove completamente o produto da venda
             AddDomainEvent(new ItemCancelado(Id, produtoId));
         }
         else
         {
+            // Atualiza a quantidade e recalcula o desconto
             var novoDesconto = _politicaDesconto.Calcular(novaQuantidade);
-            _produtos.Remove(item);
-            _produtos.Add(new ItemVenda(item.ProdutoId, novaQuantidade, item.ValorUnitario, novoDesconto));
+
+            var itemAtualizado = new ItemVenda(
+                item.ProdutoId,
+                novaQuantidade,
+                item.ValorUnitario,
+                novoDesconto);
+
+            _produtos.Add(itemAtualizado);
             AddDomainEvent(new CompraAlterada(Id, new[] { produtoId }));
         }
 
         return Result.Success();
     }
+
 
     public Result RemoverItem(Guid produtoId)
     {
