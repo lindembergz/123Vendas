@@ -99,14 +99,6 @@ public class VendaRepository : IVendaRepository
             .Take(pageSize)
             .AsSingleQuery() 
             .ToListAsync(ct);
-
-            var items = await context.Vendas
-                        .Include(v => v.Produtos)
-                        .AsSingleQuery()
-                        .OrderByDescending(v => v.Data)
-                        .Skip(0)
-                        .Take(2)
-                        .ToListAsync();
         
         // Otimização: se primeira página retornou menos itens que pageSize, não precisa fazer count
         int totalCount;

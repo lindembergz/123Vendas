@@ -55,6 +55,10 @@ try
 
     //Configure the HTTP request pipeline.
     
+    // Middleware de Security Headers (primeiro para garantir headers em todas as respostas)
+    app.UseMiddleware<SecurityHeadersMiddleware>();
+    Log.Information("Security Headers Middleware configurado");
+    
     // Middleware de CorrelationId (deve ser o primeiro para rastreamento)
     app.UseMiddleware<CorrelationIdMiddleware>();
     Log.Information("Correlation ID Middleware configurado");
