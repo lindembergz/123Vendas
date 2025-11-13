@@ -98,6 +98,13 @@ public class GlobalExceptionMiddleware
                 exception.Message
             ),
             
+            // Conflito de concorrência otimista (deve vir antes de DbUpdateException)
+            DbUpdateConcurrencyException => (
+                StatusCodes.Status409Conflict,
+                "Conflito de concorrência",
+                "Os dados foram modificados por outro usuário. Por favor, atualize e tente novamente"
+            ),
+            
             // Erros de persistência (banco de dados)
             DbUpdateException => (
                 StatusCodes.Status500InternalServerError,
