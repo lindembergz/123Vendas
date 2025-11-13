@@ -97,8 +97,16 @@ public class VendaRepository : IVendaRepository
             .OrderByDescending(v => v.Data)
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
-            .AsSingleQuery() // Força JOIN único + TOP/OFFSET no SQL
+            .AsSingleQuery() 
             .ToListAsync(ct);
+
+            var items = await context.Vendas
+                        .Include(v => v.Produtos)
+                        .AsSingleQuery()
+                        .OrderByDescending(v => v.Data)
+                        .Skip(0)
+                        .Take(2)
+                        .ToListAsync();
         
         // Otimização: se primeira página retornou menos itens que pageSize, não precisa fazer count
         int totalCount;
@@ -136,22 +144,29 @@ public class VendaRepository : IVendaRepository
     
     /// <summary>
     /// Atualiza uma venda existente e persiste eventos de domínio no outbox.
+    /// Utiliza retry strategy para lidar com conflitos de concorrência otimista.
     /// </summary>
     /// <param name="venda">Venda a ser atualizada</param>
     /// <param name="ct">Token de cancelamento</param>
     /// <exception cref="ArgumentNullException">Quando venda é nula</exception>
+    /// <exception cref="InvalidOperationException">Quando falha após múltiplas tentativas</exception>
     public async Task AtualizarAsync(VendaAgregado venda, CancellationToken ct = default)
     {
         if (venda == null)
             throw new ArgumentNullException(nameof(venda));
         
-        _context.Vendas.Update(venda);
-        
-        await AdicionarEventosAoOutboxAsync(venda, ct);
-        
-        await _context.SaveChangesAsync(ct);
-        
-        venda.ClearDomainEvents();
+        await _retryStrategy.ExecuteAsync(async () =>
+        {
+            _context.Vendas.Update(venda);
+            
+            await AdicionarEventosAoOutboxAsync(venda, ct);
+            
+            await _context.SaveChangesAsync(ct);
+            
+            venda.ClearDomainEvents();
+            
+            return true;
+        }, ct);
     }
     
     /// <summary>
