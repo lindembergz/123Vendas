@@ -32,18 +32,21 @@ try
     //6. Registrar serviços de domínio
     builder.Services.AddScoped<Venda.Domain.Interfaces.IPoliticaDesconto, Venda.Domain.Services.PoliticaDesconto>();
 
-    //7. Configurar Health Checks
+    //7. Configurar HttpClient para Health Checks
+    builder.Services.AddHttpClient();
+
+    //8. Configurar Health Checks
     builder.Services.AddAppHealthChecks(connectionString);
 
-    //8. Configurar Options Pattern para serviços externos
+    //9. Configurar Options Pattern para serviços externos
     builder.Services.Configure<ServiceSettings>("CRM", builder.Configuration.GetSection("Services:CRM"));
     builder.Services.Configure<ServiceSettings>("Estoque", builder.Configuration.GetSection("Services:Estoque"));
     
-    //8.1. Configurar Options Pattern para OutboxProcessor
+    //9.1. Configurar Options Pattern para OutboxProcessor
     builder.Services.Configure<Venda.Infrastructure.Configuration.OutboxProcessorSettings>(
         builder.Configuration.GetSection("OutboxProcessor"));
 
-    //9. Configurar serviços externos (CRM e Estoque)
+    //10. Configurar serviços externos (CRM e Estoque)
     // MODO: MOCK para desenvolvimento (sempre retorna sucesso)
 
     //===== MOCK SERVICES (DESENVOLVIMENTO) =====

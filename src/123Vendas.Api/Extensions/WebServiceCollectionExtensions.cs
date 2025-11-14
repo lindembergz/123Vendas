@@ -101,7 +101,10 @@ public static class WebServiceCollectionExtensions
             .AddCheck("self", () => HealthCheckResult.Healthy("API está respondendo"),
                 tags: new[] { "self" })
             .AddCheck<OutboxHealthCheck>("outbox",
-                tags: new[] { "outbox" });
+                tags: new[] { "outbox" })
+            .AddCheck<SeqHealthCheck>("seq",
+                failureStatus: HealthStatus.Degraded, // Seq down não derruba a API
+                tags: new[] { "logging", "seq" });
 
         return services;
     }
@@ -158,6 +161,28 @@ public static class WebServiceCollectionExtensions
                 {
                     status = report.Status.ToString()
                 }));
+            }
+        });
+
+        // Logging health (verifica apenas Seq)
+        app.MapHealthChecks("/health/logging", new HealthCheckOptions
+        {
+            Predicate = check => check.Tags.Contains("logging"),
+            ResponseWriter = async (context, report) =>
+            {
+                context.Response.ContentType = "application/json";
+                var result = JsonSerializer.Serialize(new
+                {
+                    status = report.Status.ToString(),
+                    checks = report.Entries.Select(e => new
+                    {
+                        name = e.Key,
+                        status = e.Value.Status.ToString(),
+                        description = e.Value.Description,
+                        data = e.Value.Data
+                    })
+                }, new JsonSerializerOptions { WriteIndented = true });
+                await context.Response.WriteAsync(result);
             }
         });
     }
