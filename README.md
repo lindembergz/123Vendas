@@ -483,10 +483,7 @@ Os 63 testes de integração cobrem:
 - **[OpenAPI 3.0.3 Specification](docs/openapi.yaml)** - Especificação completa da API com schemas, exemplos e descrições detalhadas
 - **Swagger UI** - Documentação interativa disponível em `https://localhost:5001/swagger` quando a API estiver rodando
 
-### Especificações do Projeto
-- [Design Document](.kiro/specs/api-vendas-123vendas/design.md) - Decisões arquiteturais detalhadas
-- [Requirements Document](.kiro/specs/api-vendas-123vendas/requirements.md) - Requisitos funcionais e não-funcionais
-- [Implementation Tasks](.kiro/specs/api-vendas-123vendas/tasks.md) - Tarefas implementadas e checklist
+
 
 
 ### Endpoints da API
