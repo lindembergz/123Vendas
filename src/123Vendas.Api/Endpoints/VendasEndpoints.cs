@@ -55,32 +55,24 @@ public static class VendasEndpoints
             .Produces<ProblemDetails>(StatusCodes.Status404NotFound)
             .Produces<ProblemDetails>(StatusCodes.Status500InternalServerError);
 
-
-
         return app;
     }
 
     private static async Task<IResult> CriarVenda(
-        [FromBody] CriarVendaRequest request,
-        [FromServices] IMediator mediator,
-        [FromServices] ILogger<Program> logger,
-        [FromServices] LinkGenerator linkGenerator,
-        HttpContext httpContext,
-        CancellationToken ct)
+        [AsParameters] CriarVendaParameters parameters)
     {
         var command = new CriarVendaCommand(
             RequestId: Guid.NewGuid(),
-            ClienteId: request.ClienteId,
-            FilialId: request.FilialId,
-            Itens: request.Itens);
+            ClienteId: parameters.Request.ClienteId,
+            FilialId: parameters.Request.FilialId,
+            Itens: parameters.Request.Itens);
 
-        var result = await mediator.Send(command, ct);
+        var result = await parameters.Mediator.Send(command, parameters.Ct);
 
         if (result.IsFailure)
         {
-            logger.LogWarning("Falha ao criar venda: {Error}", result.Error);
+            parameters.Logger.LogWarning("Falha ao criar venda: {Error}", result.Error);
             
-            // Determina se é erro de validação ou erro de negócio
             var isValidationError = result.Error?.Contains("obrigatório") == true ||
                                    result.Error?.Contains("deve") == true ||
                                    result.Error?.Contains("inválido") == true;
@@ -93,32 +85,28 @@ public static class VendasEndpoints
             });
         }
 
-        // Gera URI absoluta usando LinkGenerator
-        var location = linkGenerator.GetUriByName(
-            httpContext,
+        var location = parameters.LinkGenerator.GetUriByName(
+            parameters.HttpContext,
             "ObterVendaPorId",
             new { id = result.Value });
 
-        logger.LogInformation("Venda {VendaId} criada com sucesso", result.Value);
+        parameters.Logger.LogInformation("Venda {VendaId} criada com sucesso", result.Value);
         return Results.Created(location, result.Value);
     }
 
     private static async Task<IResult> ObterVendaPorId(
-        [FromRoute] Guid id,
-        [FromServices] IMediator mediator,
-        [FromServices] ILogger<Program> logger,
-        CancellationToken ct)
+        [AsParameters] ObterVendaPorIdParameters parameters)
     {
-        var query = new ObterVendaPorIdQuery(id);
-        var venda = await mediator.Send(query, ct);
+        var query = new ObterVendaPorIdQuery(parameters.Id);
+        var venda = await parameters.Mediator.Send(query, parameters.Ct);
 
         if (venda == null)
         {
-            logger.LogWarning("Venda {VendaId} não encontrada", id);
+            parameters.Logger.LogWarning("Venda {VendaId} não encontrada", parameters.Id);
             return Results.NotFound(new ProblemDetails
             {
                 Title = "Venda não encontrada",
-                Detail = $"Venda com ID {id} não foi encontrada",
+                Detail = $"Venda com ID {parameters.Id} não foi encontrada",
                 Status = StatusCodes.Status404NotFound
             });
         }
@@ -127,33 +115,23 @@ public static class VendasEndpoints
     }
 
     private static async Task<IResult> ListarVendas(
-        [FromQuery] int pageNumber,
-        [FromQuery] int pageSize,
-        [FromQuery] Guid? clienteId,
-        [FromQuery] Guid? filialId,
-        [FromQuery] string? status,
-        [FromQuery] DateTime? dataInicio,
-        [FromQuery] DateTime? dataFim,
-        [FromServices] IMediator mediator,
-        [FromServices] ILogger<Program> logger,
-        CancellationToken ct)
+        [AsParameters] ListarVendasParameters parameters)
     {
-        //Valores padrão
-        pageNumber = pageNumber <= 0 ? 1 : pageNumber;
-        pageSize = pageSize <= 0 ? 10 : Math.Min(pageSize, 100); 
+        var pageNumber = parameters.PageNumber <= 0 ? 1 : parameters.PageNumber;
+        var pageSize = parameters.PageSize <= 0 ? 10 : Math.Min(parameters.PageSize, 100); 
 
         var query = new ListarVendasQuery(
             PageNumber: pageNumber,
             PageSize: pageSize,
-            ClienteId: clienteId,
-            FilialId: filialId,
-            Status: status,
-            DataInicio: dataInicio,
-            DataFim: dataFim);
+            ClienteId: parameters.ClienteId,
+            FilialId: parameters.FilialId,
+            Status: parameters.Status,
+            DataInicio: parameters.DataInicio,
+            DataFim: parameters.DataFim);
 
-        var result = await mediator.Send(query, ct);
+        var result = await parameters.Mediator.Send(query, parameters.Ct);
 
-        logger.LogInformation(
+        parameters.Logger.LogInformation(
             "Listagem de vendas: Página {PageNumber}, Total: {TotalCount}",
             pageNumber, result.TotalCount);
 
@@ -161,24 +139,20 @@ public static class VendasEndpoints
     }
 
     private static async Task<IResult> AtualizarVenda(
-        [FromRoute] Guid id,
-        [FromBody] AtualizarVendaRequest request,
-        [FromServices] IMediator mediator,
-        [FromServices] ILogger<Program> logger,
-        CancellationToken ct)
+        [AsParameters] AtualizarVendaParameters parameters)
     {
         var command = new AtualizarVendaCommand(
             RequestId: Guid.NewGuid(),
-            VendaId: id,
-            Itens: request.Itens);
+            VendaId: parameters.Id,
+            Itens: parameters.Request.Itens);
 
-        var result = await mediator.Send(command, ct);
+        var result = await parameters.Mediator.Send(command, parameters.Ct);
 
         if (result.IsFailure)
         {
             if (result.Error?.Contains("não encontrada") == true)
             {
-                logger.LogWarning("Venda {VendaId} não encontrada para atualização", id);
+                parameters.Logger.LogWarning("Venda {VendaId} não encontrada para atualização", parameters.Id);
                 return Results.NotFound(new ProblemDetails
                 {
                     Title = "Venda não encontrada",
@@ -187,7 +161,7 @@ public static class VendasEndpoints
                 });
             }
 
-            logger.LogWarning("Falha ao atualizar venda {VendaId}: {Error}", id, result.Error);
+            parameters.Logger.LogWarning("Falha ao atualizar venda {VendaId}: {Error}", parameters.Id, result.Error);
             return Results.BadRequest(new ProblemDetails
             {
                 Title = "Erro ao atualizar venda",
@@ -196,27 +170,24 @@ public static class VendasEndpoints
             });
         }
 
-        logger.LogInformation("Venda {VendaId} atualizada com sucesso", id);
+        parameters.Logger.LogInformation("Venda {VendaId} atualizada com sucesso", parameters.Id);
         return Results.Ok(result.Value);
     }
 
     private static async Task<IResult> CancelarVenda(
-        [FromRoute] Guid id,
-        [FromServices] IMediator mediator,
-        [FromServices] ILogger<Program> logger,
-        CancellationToken ct)
+        [AsParameters] CancelarVendaParameters parameters)
     {
         var command = new CancelarVendaCommand(
             RequestId: Guid.NewGuid(),
-            VendaId: id);
+            VendaId: parameters.Id);
 
-        var result = await mediator.Send(command, ct);
+        var result = await parameters.Mediator.Send(command, parameters.Ct);
 
         if (result.IsFailure)
         {
             if (result.Error?.Contains("não encontrada") == true)
             {
-                logger.LogWarning("Venda {VendaId} não encontrada para cancelamento", id);
+                parameters.Logger.LogWarning("Venda {VendaId} não encontrada para cancelamento", parameters.Id);
                 return Results.NotFound(new ProblemDetails
                 {
                     Title = "Venda não encontrada",
@@ -225,7 +196,7 @@ public static class VendasEndpoints
                 });
             }
 
-            logger.LogWarning("Falha ao cancelar venda {VendaId}: {Error}", id, result.Error);
+            parameters.Logger.LogWarning("Falha ao cancelar venda {VendaId}: {Error}", parameters.Id, result.Error);
             return Results.BadRequest(new ProblemDetails
             {
                 Title = "Erro ao cancelar venda",
@@ -234,12 +205,50 @@ public static class VendasEndpoints
             });
         }
 
-        logger.LogInformation("Venda {VendaId} cancelada com sucesso", id);
+        parameters.Logger.LogInformation("Venda {VendaId} cancelada com sucesso", parameters.Id);
         return Results.NoContent();
     }
-
-
 }
+
+// Parameters Structs
+public record struct CriarVendaParameters(
+    [FromBody] CriarVendaRequest Request,
+    IMediator Mediator,
+    ILogger<Program> Logger,
+    LinkGenerator LinkGenerator,
+    HttpContext HttpContext,
+    CancellationToken Ct);
+
+public record struct ObterVendaPorIdParameters(
+    [FromRoute] Guid Id,
+    IMediator Mediator,
+    ILogger<Program> Logger,
+    CancellationToken Ct);
+
+public record struct ListarVendasParameters(
+    [FromQuery] int PageNumber,
+    [FromQuery] int PageSize,
+    [FromQuery] Guid? ClienteId,
+    [FromQuery] Guid? FilialId,
+    [FromQuery] string? Status,
+    [FromQuery] DateTime? DataInicio,
+    [FromQuery] DateTime? DataFim,
+    IMediator Mediator,
+    ILogger<Program> Logger,
+    CancellationToken Ct);
+
+public record struct AtualizarVendaParameters(
+    [FromRoute] Guid Id,
+    [FromBody] AtualizarVendaRequest Request,
+    IMediator Mediator,
+    ILogger<Program> Logger,
+    CancellationToken Ct);
+
+public record struct CancelarVendaParameters(
+    [FromRoute] Guid Id,
+    IMediator Mediator,
+    ILogger<Program> Logger,
+    CancellationToken Ct);
 
 // Request DTOs
 public record CriarVendaRequest(
