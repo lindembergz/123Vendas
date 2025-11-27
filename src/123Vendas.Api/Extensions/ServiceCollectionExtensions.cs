@@ -38,6 +38,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IIdempotencyStore, IdempotencyStore>();
         services.AddScoped<IOutboxService, OutboxService>();
 
+        //Metrics
+        services.AddSingleton<Venda.Infrastructure.Metrics.VendaMetrics>();
+
         //Outbox Event Processor
         services.AddScoped<IOutboxEventProcessor, OutboxEventProcessor>();
 

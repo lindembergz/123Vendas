@@ -32,8 +32,15 @@ try
     //6. Registrar serviços de domínio
     builder.Services.AddScoped<Venda.Domain.Interfaces.IPoliticaDesconto, Venda.Domain.Services.PoliticaDesconto>();
 
-    //7. Configurar HttpClient para Health Checks
+    //7. Configurar HttpClient para Health Checks com SocketsHttpHandler
     builder.Services.AddHttpClient();
+    builder.Services.ConfigureHttpClientDefaults(http =>
+    {
+        http.ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+        {
+            PooledConnectionLifetime = TimeSpan.FromMinutes(5)
+        });
+    });
 
     //8. Configurar Health Checks
     builder.Services.AddAppHealthChecks(connectionString);

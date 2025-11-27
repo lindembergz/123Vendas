@@ -4,6 +4,7 @@ using Venda.Domain.Interfaces;
 using Venda.Infrastructure.Data;
 using Venda.Infrastructure.Entities;
 using Venda.Infrastructure.Interfaces;
+using Venda.Infrastructure.Metrics;
 
 namespace Venda.Infrastructure.Repositories;
 
@@ -16,6 +17,7 @@ public class VendaRepository : IVendaRepository
     private readonly VendaDbContext _context;
     private readonly IOutboxService _outboxService;
     private readonly IRetryStrategy _retryStrategy;
+    private readonly VendaMetrics _metrics;
     
     /// <summary>
     /// Inicializa uma nova instância de <see cref="VendaRepository"/>.
@@ -23,15 +25,18 @@ public class VendaRepository : IVendaRepository
     /// <param name="context">Contexto do banco de dados</param>
     /// <param name="outboxService">Serviço para gerenciar eventos do outbox</param>
     /// <param name="retryStrategy">Estratégia de retry para operações com conflito de concorrência</param>
+    /// <param name="metrics">Métricas de negócio</param>
     /// <exception cref="ArgumentNullException">Quando algum parâmetro é nulo</exception>
     public VendaRepository(
         VendaDbContext context, 
         IOutboxService outboxService,
-        IRetryStrategy retryStrategy)
+        IRetryStrategy retryStrategy,
+        VendaMetrics metrics)
     {
         _context = context ?? throw new ArgumentNullException(nameof(context));
         _outboxService = outboxService ?? throw new ArgumentNullException(nameof(outboxService));
         _retryStrategy = retryStrategy ?? throw new ArgumentNullException(nameof(retryStrategy));
+        _metrics = metrics ?? throw new ArgumentNullException(nameof(metrics));
     }
     
     /// <summary>
@@ -202,6 +207,7 @@ public class VendaRepository : IVendaRepository
     {
         // Gerar número sequencial de forma thread-safe
         var novoNumero = await ObterProximoNumeroVendaAsync(venda.FilialId, ct);
+        //Aqui definimos o número da venda no agregado e o evento será disparado compraCriada
         venda.DefinirNumeroVenda(novoNumero);
         
         await _context.Vendas.AddAsync(venda, ct);
@@ -209,6 +215,9 @@ public class VendaRepository : IVendaRepository
         await AdicionarEventosAoOutboxAsync(venda, ct);
         
         await _context.SaveChangesAsync(ct);
+        
+        // Incrementar métrica de vendas criadas
+        _metrics.ContarVendaCriada();
         
         venda.ClearDomainEvents();
     }
